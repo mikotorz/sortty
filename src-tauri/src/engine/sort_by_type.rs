@@ -12,8 +12,10 @@ pub fn build_plan(root: &Path, entries: &[FileEntry], rules: &CategoryRules) -> 
         let dest_dir = root.join(&category);
         let destination = dest_dir.join(&entry.file_name);
 
-        // Already sorted into the right place; nothing to do.
-        if entry.path == destination {
+        // Already anywhere under the right category folder (including a
+        // subfolder the user made inside it, like `Images/2019/`); a
+        // recursive scan must not flatten that back out.
+        if entry.path.starts_with(&dest_dir) {
             continue;
         }
 
@@ -77,5 +79,24 @@ mod tests {
         e.path = std::path::PathBuf::from("/root/Images/photo.png");
         let plan = build_plan(Path::new("/root"), &[e], &rules);
         assert_eq!(plan.operations.len(), 0);
+    }
+
+    /// Regression: with "include subfolders" on, `Images/2019/photo.png`
+    /// was moved to `Images/photo.png`, flattening the user's own folders.
+    #[test]
+    fn leaves_files_in_subfolders_of_the_right_category_alone() {
+        let rules = CategoryRules::default_rules();
+        let mut nested = entry("photo.png", Some("png"));
+        nested.path = std::path::PathBuf::from("/root/Images/2019/photo.png");
+        let mut misfiled = entry("notes.txt", Some("txt"));
+        misfiled.path = std::path::PathBuf::from("/root/Images/2019/notes.txt");
+
+        let plan = build_plan(Path::new("/root"), &[nested, misfiled], &rules);
+
+        assert_eq!(plan.operations.len(), 1);
+        assert_eq!(
+            plan.operations[0].destination,
+            std::path::PathBuf::from("/root/Documents/notes.txt")
+        );
     }
 }

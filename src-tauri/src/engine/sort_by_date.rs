@@ -56,11 +56,11 @@ where
                 .join(format!("{:04}", date.year()))
                 .join(format!("{:02}", date.month())),
         };
-        let destination = dest_dir.join(&entry.file_name);
-
-        if entry.path == destination {
+        // Already anywhere under the right year (or year/month) folder.
+        if entry.path.starts_with(&dest_dir) {
             continue;
         }
+        let destination = dest_dir.join(&entry.file_name);
 
         let reason = format!("Dated {}", date.format("%Y-%m-%d"));
         operations.push(Operation::new(
@@ -142,6 +142,32 @@ mod tests {
         assert_eq!(
             plan.operations[0].destination,
             std::path::PathBuf::from("/root/2025/a.txt")
+        );
+    }
+
+    #[test]
+    fn leaves_files_already_under_their_date_folder_alone() {
+        let date = chrono::Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap();
+        let mut sorted = entry("a.txt", date);
+        sorted.path = std::path::PathBuf::from("/root/2026/01/trip/a.txt");
+        let mut wrong_month = entry("b.txt", date);
+        wrong_month.path = std::path::PathBuf::from("/root/2026/02/b.txt");
+        let options = SortByDateOptions {
+            date_source: DateSource::Modified,
+            granularity: DateGranularity::YearMonth,
+        };
+
+        let plan = build_plan_in(
+            Path::new("/root"),
+            &[sorted, wrong_month],
+            &options,
+            &chrono::Utc,
+        );
+
+        assert_eq!(plan.operations.len(), 1);
+        assert_eq!(
+            plan.operations[0].destination,
+            std::path::PathBuf::from("/root/2026/01/b.txt")
         );
     }
 }
