@@ -137,7 +137,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 max-w-3xl h-full min-h-0">
+<div class="flex flex-col gap-4 h-full min-h-0">
   <div>
     <h1 class="text-lg font-semibold">Sort &amp; Clean</h1>
     <p class="text-sm text-[var(--color-text-muted)]">

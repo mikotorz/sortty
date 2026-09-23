@@ -76,3 +76,14 @@ itself never overflowed and couldn't scroll either. The results card now has
 a floor (`min-h-80`, 20rem): it still grows to fill a tall window, but in a
 short one it keeps a usable height and the page-level `app-content` scroll
 takes over, bringing the list into view.
+
+## Amendment (2026-09-24): pages no longer have a fixed maximum width
+
+The bug users actually saw was about width, not height. Every page's content
+column had `max-w-3xl` (768px), so a wider window only added empty space to
+the right of the cards. The layout changes above were still worth making,
+because they let the list grow taller, but they didn't address this. The
+list-oriented pages (Sort & Clean, Browse, History) now fill the available
+width, like a file manager. Grid view adds tile columns to match (4 at the
+default window size, 7 at 1600px wide). Settings keeps its 768px cap: it's
+a form, and very wide text fields are harder to read.

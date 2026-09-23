@@ -2,7 +2,7 @@
   import HistoryPanel from "$lib/components/HistoryPanel.svelte";
 </script>
 
-<div class="flex flex-col gap-4 max-w-3xl">
+<div class="flex flex-col gap-4">
   <div>
     <h1 class="text-lg font-semibold">History</h1>
     <p class="text-sm text-[var(--color-text-muted)]">
