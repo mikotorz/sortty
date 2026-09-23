@@ -9,7 +9,6 @@ import {
   getRun,
   saveCategoryRules,
   saveSettings,
-  scanFolder,
   undoRun,
 } from "./commands";
 import type { AppSettings, CategoryRules, Plan } from "./types";
@@ -29,18 +28,6 @@ const mockedInvoke = vi.mocked(invoke);
 // wrapper sends — the one place a typo here (or in the Rust #[tauri::command]
 // signature) would otherwise only surface at runtime against the real app.
 describe("commands.ts", () => {
-  it("scanFolder invokes scan_folder with root and options", async () => {
-    mockedInvoke.mockResolvedValueOnce({ entries: [] });
-    await scanFolder("C:\\Downloads", {
-      include_subfolders: true,
-      exclude_folders: [],
-    });
-    expect(mockedInvoke).toHaveBeenCalledWith("scan_folder", {
-      root: "C:\\Downloads",
-      options: { include_subfolders: true, exclude_folders: [] },
-    });
-  });
-
   it("generatePlan invokes generate_plan with root, request, scanOptions, and a progress channel", async () => {
     mockedInvoke.mockResolvedValueOnce({} as Plan);
     await generatePlan("C:\\Downloads", { mode: "sort_by_type" });

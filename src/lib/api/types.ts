@@ -20,13 +20,6 @@ export interface ScanOptions {
   exclude_folders: string[];
 }
 
-export interface ScanResult {
-  entries: FileEntry[];
-  total_files: number;
-  total_bytes: number;
-  scanned_at: string;
-}
-
 /** Progress while building a plan. `checking`/`comparing` are Find
  * Duplicates' two hashing passes (first 64 KiB, then full contents). */
 export type PlanProgress =

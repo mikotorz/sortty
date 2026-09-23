@@ -10,6 +10,8 @@ The second half of the pre-Opus review: nothing new to click, but safer and fast
 - **Long file work now runs in the background.** Scanning, applying, undoing, browsing and emptying the trash used to run on the threads that handle every other request from the window. On a big folder that could slow the rest of the app down. That work now runs on a separate background pool.
 - **Find Duplicates is faster, shows progress, and can be cancelled.** Files of the same size are first compared by their first 64 KB, and only files that match there are read in full, so big files that merely share a size no longer get read completely. The Scan button now shows "Checking for duplicates… 120/800" during this step, and Cancel works there too. See the amendment to [ADR 0013](docs/adr/0013-scan-apply-progress-and-cancellation.md).
 - **Lighter, faster grid thumbnails.** Grid view used to receive every picture at full size (up to 15 MB each) just to show a small tile. sortty now makes a small thumbnail (at most 256 px) and sends only that. It loads at most six at a time and remembers recent ones, so scrolling back up doesn't redo the work. Pictures up to 50 MB now get thumbnails, up from 15 MB.
+- **Added a content security policy.** The window previously had none. It can now only run the app's own code and can't reach the network, as a safeguard in case a file name or picture ever contains something harmful. See [ADR 0018](docs/adr/0018-content-security-policy.md).
+- Removed an unused `scan_folder` command. Plans are always built through `generate_plan`.
 
 ## 2026-09-24 — Review fixes: trash safety, undo, dates, settings
 

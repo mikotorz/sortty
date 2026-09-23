@@ -10,17 +10,9 @@ import type {
   RunRecord,
   RunSummary,
   ScanOptions,
-  ScanResult,
   StagingKind,
   UndoResult,
 } from "./types";
-
-export function scanFolder(
-  root: string,
-  options?: ScanOptions,
-): Promise<ScanResult> {
-  return invoke("scan_folder", { root, options });
-}
 
 /** Resolves to `null` if the user cancelled the scan before a plan existed. */
 export function generatePlan(

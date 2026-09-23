@@ -28,7 +28,6 @@ pub fn run() {
         .manage(commands::cancel::CancelFlag::default())
         .manage(commands::plan::PlanStore::default())
         .invoke_handler(tauri::generate_handler![
-            commands::scan::scan_folder,
             commands::plan::generate_plan,
             commands::apply::apply_plan,
             commands::cancel::cancel_current_operation,
