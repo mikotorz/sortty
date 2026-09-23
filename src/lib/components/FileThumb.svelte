@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { readFilePreview } from "../api/commands";
+  import { loadThumbnail } from "../thumbnails";
   import Image from "@lucide/svelte/icons/image";
   import Video from "@lucide/svelte/icons/video";
   import Music from "@lucide/svelte/icons/music";
@@ -81,7 +81,7 @@
   async function load() {
     if (!isImage || dataUrl || failed) return;
     try {
-      dataUrl = await readFilePreview(path);
+      dataUrl = await loadThumbnail(path);
     } catch {
       failed = true;
     }
