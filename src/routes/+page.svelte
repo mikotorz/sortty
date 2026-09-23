@@ -11,7 +11,7 @@
   } from "$lib/api/commands";
   import { formatBytes } from "$lib/format";
   import { pushToast } from "$lib/state/toast";
-  import { selectedRoot } from "$lib/state/stores";
+  import { appSettings, selectedRoot } from "$lib/state/stores";
   import { scanSession } from "$lib/state/scanSession.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import X from "@lucide/svelte/icons/x";
@@ -313,8 +313,12 @@
 >
   {#snippet description()}
     Files will be moved to their new locations now. Nothing is permanently
-    deleted — duplicates and stale files go into a <code>.sortty-trash</code> /
-    <code>.sortty-archive</code> folder inside the scanned folder (not the Windows
-    Recycle Bin), and this whole run can be undone from History afterward.
+    deleted — duplicates and stale files go into a <code
+      >{$appSettings?.trash.staging_folder_name ?? ".sortty-trash"}</code
+    >
+    /
+    <code>{$appSettings?.trash.archive_folder_name ?? ".sortty-archive"}</code> folder
+    inside the scanned folder (not the Windows Recycle Bin), and this whole run can
+    be undone from History afterward.
   {/snippet}
 </ConfirmModal>

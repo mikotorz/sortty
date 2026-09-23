@@ -95,7 +95,7 @@ const PROTECTED_TOP_LEVEL_NAMES: &[&str] = &[
 
 /// True for a drive root (e.g. `C:\`) or a core OS folder directly under one
 /// (e.g. `C:\Windows`) — places where "organizing" would be catastrophic.
-fn is_protected_root(root: &Path) -> bool {
+pub fn is_protected_root(root: &Path) -> bool {
     let Some(parent) = root.parent() else {
         return true; // root has no parent: it's a drive root
     };

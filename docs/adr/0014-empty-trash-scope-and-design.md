@@ -22,3 +22,7 @@ Accepted
 - Reads the _actual configured_ trash/archive folder names (`AppSettings.trash.staging_folder_name`/`archive_folder_name`) rather than hardcoding `.sortty-trash`/`.sortty-archive` — unlike `commands::browse::delete_files_at` and `ScanOptions::default()`, which still hardcode the literals (a separate, pre-existing bug, not fixed here).
 - `commands::trash::empty_staging_folder_at` guards `target.starts_with(root)` before calling `remove_dir_all` — cheap, and this is the one place in the codebase where a mistake is genuinely unrecoverable. This guard is best-effort, not a complete guarantee: a hand-edited `settings.toml` with a `..`-containing folder name could still lexically satisfy `starts_with` without the resolved path actually staying inside `root`. This mirrors [ADR 0007](0007-validate-configurable-folder-names.md)'s already-accepted gap (validation happens at save time, not at every read) — the attack surface is the user's own machine and their own config file.
 - If a future need for global (all-roots) trash cleanup emerges, it can be layered on top of this per-root primitive rather than requiring a rewrite.
+
+## Amendment (2026-09-24)
+
+Both of the hard-coded-name bugs mentioned in Consequences are fixed. Scans and Browse always exclude the configured and default staging names ([ADR 0017](0017-staging-folders-and-no-clobber-moves.md)). Browse delete now uses the configured trash name at the root of the browsed folder ([ADR 0006](0006-browse-delete-reuses-move-to-trash.md) amendment), so Empty Trash sees everything Browse deleted.

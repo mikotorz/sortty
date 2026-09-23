@@ -24,3 +24,15 @@ Browse itself (`commands::browse::browse_folder`) is not a new listing routine e
 - "Delete" gets undo, History visibility, and failure reporting for free — no new code paths, no new tests needed for those behaviors beyond the ones `apply`/`undo`/`store` already have.
 - As with Dedup and Cleanup, this does **not** free disk space — files move into `.sortty-trash`, not away from the disk. The Browse UI and its confirmation dialog say "moved to trash" rather than "deleted," to avoid over-promising, consistent with the wording already used elsewhere in the app.
 - A `.sortty-trash` folder can now be created inside an arbitrary browsed folder, not just at a scan root — this falls out naturally of computing the trash path as `source.parent()/.sortty-trash` rather than requiring a fixed root, and needs no special-casing because the scanner's existing name-based exclusion (`exclude`) already prunes any folder named `.sortty-trash` at any depth, so it won't reappear in a later Browse or scan.
+
+## Amendment (2026-09-24): one trash per root
+
+The last bullet above turned out to be a bug in practice. Deleting `Images/2024/x.png` while browsing `Images/` created `Images/2024/.sortty-trash/`. But Browse's Empty Trash ([ADR 0014](0014-empty-trash-scope-and-design.md)) only looks at `<browsed folder>/<trash name>`, so files deleted from any subfolder were never counted or emptied. The path was also hard-coded as `.sortty-trash`, ignoring a trash folder renamed in Settings.
+
+Browse delete now computes its destination the same way Dedup does, with `staged_destination(root, source, configured_trash_name)`. Everything goes into one trash folder at the top of the browsed folder, keeping its relative path (`Images/.sortty-trash/2024/x.png`). `delete_files_at` also now refuses the following before moving anything:
+
+- a protected root;
+- any path that isn't inside the browsed folder;
+- anything that isn't a file.
+
+Before, `root` was only recorded, never checked.

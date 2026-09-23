@@ -10,6 +10,7 @@
   import type { EmptyResult, FileEntry, StagingKind } from "../api/types";
   import { formatBytes } from "../format";
   import { pushToast } from "../state/toast";
+  import { appSettings } from "../state/stores";
   import { getScrollRoot } from "../state/scrollRoot.svelte";
   import {
     groupByDir,
@@ -308,10 +309,10 @@
   onCancel={() => (confirmOpen = false)}
 >
   {#snippet description()}
-    Nothing is permanently deleted — these files move into a <code
-      >.sortty-trash</code
-    > folder next to them (not the Windows Recycle Bin), and this can be undone from
-    History afterward.
+    Nothing is permanently deleted — these files move into the <code
+      >{$appSettings?.trash.staging_folder_name ?? ".sortty-trash"}</code
+    > folder at the top of this folder (not the Windows Recycle Bin), and this can
+    be undone from History afterward.
   {/snippet}
 </ConfirmModal>
 

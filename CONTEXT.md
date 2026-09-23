@@ -21,7 +21,7 @@ Sortty is a desktop tool that proposes and applies file-organizing operations ag
 
 Sortty never calls a real delete. "Removing" a duplicate or archiving a stale file both compile down to a `Move` into a tool-owned staging folder (`.sortty-trash` or `.sortty-archive`) inside the same root — never the Windows Recycle Bin, and never `fs::remove_file`. This is why apply/undo can be perfectly symmetric, and why every mode is safe to experiment with. See [ADR 0002](docs/adr/0002-moves-not-deletes.md).
 
-Manually deleting a file from Browse follows the same rule: it's a `PlanMode::Delete` plan whose operations are ordinary `MoveToTrash` moves into a `.sortty-trash` folder next to the deleted file, applied and recorded through the exact same `RunRecord`/History/Undo path as a Dedup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
+Manually deleting a file from Browse follows the same rule: it's a `PlanMode::Delete` plan whose operations are ordinary `MoveToTrash` moves into the trash folder at the top of the browsed folder (keeping each file's relative path, the same layout Dedup uses), applied and recorded through the exact same `RunRecord`/History/Undo path as a Dedup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
 
 The only genuinely irreversible action in the app's design is **emptying the trash** (see Empty trash above) — permanently deleting the `.sortty-trash`/`.sortty-archive` staging folders themselves, which necessarily falls outside the move-not-delete guarantee everything else in this section describes.
 
