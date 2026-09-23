@@ -65,3 +65,14 @@ with virtualized lists needed the flex/min-height:0 chain.
 - If a third caller ever needs a small, self-contained virtualized list (not
   sharing a page-level scroll region), it would need its own scroll wrapper
   reintroduced — not built preemptively here.
+
+## Amendment (2026-09-24): minimum height for the results card
+
+The first version gave the results card `min-height: 0` all the way down.
+On Sort & Clean, the scan-options card above the results takes up most of a
+default-size window, so the results card shrank to nearly zero and the list
+couldn't be scrolled. The page column also has a fixed height, so the page
+itself never overflowed and couldn't scroll either. The results card now has
+a floor (`min-h-80`, 20rem): it still grows to fill a tall window, but in a
+short one it keeps a usable height and the page-level `app-content` scroll
+takes over, bringing the list into view.

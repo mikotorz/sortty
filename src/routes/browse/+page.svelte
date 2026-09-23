@@ -10,7 +10,7 @@
     </p>
   </div>
 
-  <div class="card flex flex-col min-h-0 flex-1">
+  <div class="card flex flex-col min-h-80 flex-1">
     <BrowsePanel />
   </div>
 </div>

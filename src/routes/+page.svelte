@@ -246,7 +246,7 @@
   </div>
 
   {#if scanSession.plan}
-    <div class="card flex flex-col min-h-0 flex-1">
+    <div class="card flex flex-col min-h-80 flex-1">
       <div class="flex items-center justify-between text-sm mb-3">
         <span class="text-[var(--color-text-muted)]"
           >{selectedCount} of {scanSession.plan.operations.length} selected ({formatBytes(

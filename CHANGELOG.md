@@ -2,6 +2,10 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Fixed the file list being unscrollable at the default window size
+
+The previous fix (below) made the results list fill the window, but it let the list shrink with no lower limit. On Sort & Clean, the scan options take up most of a default-size window, so the list was squeezed to almost nothing and couldn't be scrolled. The page as a whole couldn't scroll either. The results area now has a minimum height. In a large window it still grows to fill the space. In a small one it stays usable and the page scrolls to bring it into view. See the amendment in [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).
+
 ## 2026-09-24 — Fixed the file list not growing when the window is enlarged
 
 Enlarging the window left the scan/browse results looking stuck — the window grew, but the list stayed a fixed height with blank space below it. Each collapsible folder group had its own independently-scrolling box capped at a hardcoded height, and nothing above it in the layout could stretch. All the groups on a page now share one scroll region that fills the window, like a typical file manager, while still only rendering the rows actually in view. See [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).
