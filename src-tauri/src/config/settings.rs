@@ -1,0 +1,145 @@
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+use crate::domain::category::CategoryRules;
+use crate::domain::plan::PlanMode;
+use crate::engine::cleanup::StaleAction;
+use crate::engine::dedup::KeepStrategy;
+use crate::engine::sort_by_date::{DateGranularity, DateSource};
+use crate::error::AppError;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeneralSettings {
+    pub default_root: Option<String>,
+    pub last_used_mode: PlanMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SortByDateSettings {
+    pub granularity: DateGranularity,
+    pub date_source: DateSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CleanupSettings {
+    pub stale_days: u32,
+    pub date_source: DateSource,
+    pub action: StaleAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DedupSettings {
+    pub keep_strategy: KeepStrategy,
+    pub min_size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrashSettings {
+    pub staging_folder_name: String,
+    pub archive_folder_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppSettings {
+    pub general: GeneralSettings,
+    pub sort_by_date: SortByDateSettings,
+    pub cleanup: CleanupSettings,
+    pub dedup: DedupSettings,
+    pub trash: TrashSettings,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        AppSettings {
+            general: GeneralSettings {
+                default_root: None,
+                last_used_mode: PlanMode::SortByType,
+            },
+            sort_by_date: SortByDateSettings {
+                granularity: DateGranularity::YearMonth,
+                date_source: DateSource::Modified,
+            },
+            cleanup: CleanupSettings {
+                stale_days: 180,
+                date_source: DateSource::Modified,
+                action: StaleAction::Archive,
+            },
+            dedup: DedupSettings {
+                keep_strategy: KeepStrategy::OldestModified,
+                min_size_bytes: 1024,
+            },
+            trash: TrashSettings {
+                staging_folder_name: ".sortty-trash".to_string(),
+                archive_folder_name: ".sortty-archive".to_string(),
+            },
+        }
+    }
+}
+
+fn settings_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("settings.toml")
+}
+
+fn categories_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("categories.toml")
+}
+
+pub fn load_settings(config_dir: &Path) -> Result<AppSettings, AppError> {
+    let path = settings_path(config_dir);
+    if !path.exists() {
+        let defaults = AppSettings::default();
+        save_settings(config_dir, &defaults)?;
+        return Ok(defaults);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| AppError::io(path.clone(), e))?;
+    toml::from_str(&text).map_err(|e| AppError::Config(format!("settings.toml: {e}")))
+}
+
+pub fn save_settings(config_dir: &Path, settings: &AppSettings) -> Result<(), AppError> {
+    std::fs::create_dir_all(config_dir).map_err(|e| AppError::io(config_dir.to_path_buf(), e))?;
+    let path = settings_path(config_dir);
+    let text = toml::to_string_pretty(settings)
+        .map_err(|e| AppError::Config(format!("failed to serialize settings: {e}")))?;
+    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))
+}
+
+pub fn load_category_rules(config_dir: &Path) -> Result<CategoryRules, AppError> {
+    let path = categories_path(config_dir);
+    if !path.exists() {
+        let defaults = CategoryRules::default_rules();
+        save_category_rules(config_dir, &defaults)?;
+        return Ok(defaults);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| AppError::io(path.clone(), e))?;
+    toml::from_str(&text).map_err(|e| AppError::Config(format!("categories.toml: {e}")))
+}
+
+pub fn save_category_rules(config_dir: &Path, rules: &CategoryRules) -> Result<(), AppError> {
+    std::fs::create_dir_all(config_dir).map_err(|e| AppError::io(config_dir.to_path_buf(), e))?;
+    let path = categories_path(config_dir);
+    let text = toml::to_string_pretty(rules)
+        .map_err(|e| AppError::Config(format!("failed to serialize categories: {e}")))?;
+    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn creates_defaults_on_first_load_and_reloads_same_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = load_settings(dir.path()).unwrap();
+        assert_eq!(settings.cleanup.stale_days, 180);
+
+        let reloaded = load_settings(dir.path()).unwrap();
+        assert_eq!(reloaded.cleanup.stale_days, settings.cleanup.stale_days);
+    }
+
+    #[test]
+    fn round_trips_category_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let rules = load_category_rules(dir.path()).unwrap();
+        assert!(rules.categories.contains_key("Images"));
+    }
+}
