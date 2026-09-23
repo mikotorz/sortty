@@ -17,10 +17,13 @@
 
 <div class="flex items-center gap-2">
   <div
-    class="field flex flex-1 items-center gap-2 text-[var(--color-text-muted)]"
+    class="field flex min-w-0 flex-1 items-center gap-2 text-[var(--color-text-muted)]"
   >
     <FolderOpen size={15} class="shrink-0" />
-    <span class="truncate {$selectedRoot ? 'text-[var(--color-text)]' : ''}">
+    <span
+      class="truncate {$selectedRoot ? 'text-[var(--color-text)]' : ''}"
+      title={$selectedRoot ?? undefined}
+    >
       {$selectedRoot ?? "No folder selected"}
     </span>
   </div>

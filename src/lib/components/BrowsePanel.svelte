@@ -147,7 +147,7 @@
 
 <div class="flex items-center gap-2 mb-4">
   <div
-    class="field flex flex-1 items-center gap-2 text-[var(--color-text-muted)]"
+    class="field flex min-w-0 flex-1 items-center gap-2 text-[var(--color-text-muted)]"
   >
     <FolderOpen size={15} class="shrink-0" />
     <span class="truncate {folder ? 'text-[var(--color-text)]' : ''}">

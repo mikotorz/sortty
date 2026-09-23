@@ -61,8 +61,8 @@ pub fn delete_files_at(
     let mut operations = Vec::with_capacity(paths.len());
     for source in paths {
         if source == root || !source.starts_with(root) {
-            return Err(AppError::InvalidPlan(format!(
-                "{} isn't inside {}",
+            return Err(AppError::Other(format!(
+                "{} isn't inside the folder being browsed ({})",
                 source.display(),
                 root.display()
             )));
@@ -200,7 +200,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(matches!(err, AppError::InvalidPlan(_)));
+        assert!(matches!(err, AppError::Other(_)));
         assert!(root.join("inside.txt").exists());
         assert!(dir.path().join("outside.txt").exists());
     }

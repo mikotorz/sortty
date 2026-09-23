@@ -6,6 +6,7 @@ Notable changes to sortty, newest first. This is the primary place to catch up o
 
 - **"Undo this run" button.** After you apply a plan, the result box on Sort & Clean now says how many files moved and offers **Undo this run** straight away. Before, the only way to undo was from History.
 - **See what a run did.** Each run in History has a **Details** toggle that lists every file it moved (from → to), marks the ones an undo has put back, and lists anything that failed. A folder button next to each file shows it in File Explorer. Before, History only showed failures.
+- **Fixed: a very long folder path pushed the page sideways.** The folder box on Sort & Clean and Browse now shortens a long path with "…" (hover to see all of it) instead of stretching the page and adding a horizontal scrollbar.
 
 ## 2026-09-24 — Review follow-up: sturdier internals
 
