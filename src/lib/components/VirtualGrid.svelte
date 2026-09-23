@@ -12,6 +12,10 @@
    * `grid-template-columns`, so the JS chunking used to slice items into
    * rows always agrees with what the browser lays out (unlike CSS
    * `auto-fill`, which can't be trusted to match a row's fixed slice).
+   *
+   * Virtualizes against a shared scroll container (`scrollElement`) rather
+   * than one of its own — see VirtualList for the shared-scroll-parent
+   * rationale and the `scrollMargin`/`layoutVersion` contract.
    */
   let {
     items,
@@ -19,7 +23,8 @@
     tileHeight,
     itemKey,
     gap = 12,
-    maxHeight = 420,
+    scrollElement,
+    layoutVersion = 0,
     overscan = 3,
     tile,
   }: {
@@ -28,13 +33,15 @@
     tileHeight: number;
     itemKey: (item: T) => string | number;
     gap?: number;
-    maxHeight?: number;
+    scrollElement: HTMLDivElement | null;
+    layoutVersion?: number;
     overscan?: number;
     tile: Snippet<[T]>;
   } = $props();
 
-  let scrollEl = $state<HTMLDivElement | null>(null);
+  let containerEl = $state<HTMLDivElement | null>(null);
   let containerWidth = $state(0);
+  let scrollMargin = $state(0);
 
   let columns = $derived(
     Math.max(1, Math.floor((containerWidth + gap) / (minTileWidth + gap))),
@@ -44,35 +51,51 @@
   const virtualizer = untrack(() =>
     createVirtualizer<HTMLDivElement, HTMLDivElement>({
       count: rowCount,
-      getScrollElement: () => scrollEl,
+      getScrollElement: () => scrollElement,
       estimateSize: () => tileHeight,
       overscan,
+      scrollMargin: 0,
     }),
   );
 
-  // Same pattern as VirtualList: read `rowCount`/`tileHeight` reactively but
-  // `get()` the virtualizer without subscribing to it, since `setOptions`
-  // writes back into the same store a reactive `$virtualizer` read would
-  // resubscribe this effect to.
+  // Scroll-position-invariant: `scroller.scrollTop` cancels the rect delta,
+  // so this is safe to (re)compute at any scroll position without listening
+  // to scroll events — only on real layout changes.
+  $effect(() => {
+    void layoutVersion;
+    const container = containerEl;
+    const scroller = scrollElement;
+    if (!container || !scroller) return;
+    scrollMargin =
+      container.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop;
+  });
+
+  // Same pattern as VirtualList: read `rowCount`/`tileHeight`/`scrollMargin`
+  // reactively but `get()` the virtualizer without subscribing to it, since
+  // `setOptions` writes back into the same store a reactive `$virtualizer`
+  // read would resubscribe this effect to.
   $effect(() => {
     const count = rowCount;
     const size = tileHeight;
-    get(virtualizer).setOptions({ count, estimateSize: () => size });
+    const margin = scrollMargin;
+    get(virtualizer).setOptions({
+      count,
+      estimateSize: () => size,
+      scrollMargin: margin,
+    });
   });
 </script>
 
-<div
-  bind:this={scrollEl}
-  bind:clientWidth={containerWidth}
-  class="overflow-y-auto"
-  style="max-height: {maxHeight}px;"
->
+<div bind:this={containerEl} bind:clientWidth={containerWidth}>
   <div
     style="height: {$virtualizer.getTotalSize()}px; position: relative; width: 100%;"
   >
     {#each $virtualizer.getVirtualItems() as vi (vi.key)}
       <div
-        style="position: absolute; top: 0; left: 0; width: 100%; height: {vi.size}px; transform: translateY({vi.start}px);
+        style="position: absolute; top: 0; left: 0; width: 100%; height: {vi.size}px; transform: translateY({vi.start -
+          scrollMargin}px);
           display: grid; grid-template-columns: repeat({columns}, minmax(0, 1fr)); gap: {gap}px;"
       >
         {#each items.slice(vi.index * columns, vi.index * columns + columns) as item (itemKey(item))}

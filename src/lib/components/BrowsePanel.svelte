@@ -37,6 +37,22 @@
   let selected = $state<Record<string, boolean>>({});
   let openGroups = $state<Record<string, boolean>>({});
 
+  let scrollEl = $state<HTMLDivElement | null>(null);
+  let listContentEl = $state<HTMLDivElement | null>(null);
+  let layoutVersion = $state(0);
+
+  // See PreviewTable.svelte for why this observes the auto-height content
+  // wrapper (not the flex-bounded scroller) and what layoutVersion is for.
+  $effect(() => {
+    const el = listContentEl;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      layoutVersion++;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+
   let emptyConfirmOpen = $state(false);
   let emptyKind = $state<StagingKind | null>(null);
   let emptyPreview = $state<EmptyResult | null>(null);
@@ -215,80 +231,89 @@
     </button>
   </div>
 
-  {#each groups as [dir, group] (dir)}
-    <Collapsible.Root
-      class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
-      open={isGroupOpen(dir)}
-      onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
-    >
-      <div
-        class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
-      >
-        <Checkbox.Root
-          checked={isGroupChecked(group, idOf, selected)}
-          indeterminate={isGroupIndeterminate(group, idOf, selected)}
-          onCheckedChange={(v) => toggleGroup(group, v === true)}
-          class="chk"
+  <div bind:this={scrollEl} class="flex-1 min-h-0 overflow-y-auto">
+    <div bind:this={listContentEl}>
+      {#each groups as [dir, group] (dir)}
+        <Collapsible.Root
+          class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
+          open={isGroupOpen(dir)}
+          onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
         >
-          {#snippet children({ checked, indeterminate })}
-            {#if indeterminate}<Minus size={11} />{:else if checked}<Check
-                size={11}
-              />{/if}
-          {/snippet}
-        </Checkbox.Root>
-        <Collapsible.Trigger
-          class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm"
-        >
-          <ChevronRight
-            size={14}
-            class="chevron shrink-0 text-[var(--color-text-muted)]"
-          />
-          <code class="text-[0.8rem]">{dir}</code>
-          <span class="text-xs text-[var(--color-text-muted)]"
-            >({group.length})</span
+          <div
+            class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
           >
-        </Collapsible.Trigger>
-      </div>
-      <Collapsible.Content>
-        <div class="text-sm" role="table">
-          <VirtualList items={group} estimateSize={37}>
-            {#snippet row(entry: FileEntry)}
-              <div
-                role="row"
-                class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
-                style="grid-template-columns: 2rem minmax(0, 60%) minmax(0, 1fr) auto;"
+            <Checkbox.Root
+              checked={isGroupChecked(group, idOf, selected)}
+              indeterminate={isGroupIndeterminate(group, idOf, selected)}
+              onCheckedChange={(v) => toggleGroup(group, v === true)}
+              class="chk"
+            >
+              {#snippet children({ checked, indeterminate })}
+                {#if indeterminate}<Minus size={11} />{:else if checked}<Check
+                    size={11}
+                  />{/if}
+              {/snippet}
+            </Checkbox.Root>
+            <Collapsible.Trigger
+              class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm"
+            >
+              <ChevronRight
+                size={14}
+                class="chevron shrink-0 text-[var(--color-text-muted)]"
+              />
+              <code class="text-[0.8rem]">{dir}</code>
+              <span class="text-xs text-[var(--color-text-muted)]"
+                >({group.length})</span
               >
-                <Checkbox.Root
-                  checked={selected[entry.path]}
-                  onCheckedChange={(v) =>
-                    (selected = { ...selected, [entry.path]: v === true })}
-                  class="chk"
-                >
-                  {#snippet children({ checked })}
-                    {#if checked}<Check size={11} />{/if}
-                  {/snippet}
-                </Checkbox.Root>
-                <span
-                  class="overflow-hidden text-ellipsis whitespace-nowrap"
-                  title={entry.path}
-                >
-                  {entry.file_name}
-                </span>
-                <span
-                  class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
-                >
-                  {new Date(entry.modified).toLocaleDateString()}
-                </span>
-                <span class="whitespace-nowrap text-right"
-                  >{formatBytes(entry.size_bytes)}</span
-                >
-              </div>
-            {/snippet}
-          </VirtualList>
-        </div>
-      </Collapsible.Content>
-    </Collapsible.Root>
-  {/each}
+            </Collapsible.Trigger>
+          </div>
+          <Collapsible.Content>
+            <div class="text-sm" role="table">
+              <VirtualList
+                items={group}
+                estimateSize={37}
+                scrollElement={scrollEl}
+                {layoutVersion}
+              >
+                {#snippet row(entry: FileEntry)}
+                  <div
+                    role="row"
+                    class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
+                    style="grid-template-columns: 2rem minmax(0, 60%) minmax(0, 1fr) auto;"
+                  >
+                    <Checkbox.Root
+                      checked={selected[entry.path]}
+                      onCheckedChange={(v) =>
+                        (selected = { ...selected, [entry.path]: v === true })}
+                      class="chk"
+                    >
+                      {#snippet children({ checked })}
+                        {#if checked}<Check size={11} />{/if}
+                      {/snippet}
+                    </Checkbox.Root>
+                    <span
+                      class="overflow-hidden text-ellipsis whitespace-nowrap"
+                      title={entry.path}
+                    >
+                      {entry.file_name}
+                    </span>
+                    <span
+                      class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
+                    >
+                      {new Date(entry.modified).toLocaleDateString()}
+                    </span>
+                    <span class="whitespace-nowrap text-right"
+                      >{formatBytes(entry.size_bytes)}</span
+                    >
+                  </div>
+                {/snippet}
+              </VirtualList>
+            </div>
+          </Collapsible.Content>
+        </Collapsible.Root>
+      {/each}
+    </div>
+  </div>
 {/if}
 
 <ConfirmModal

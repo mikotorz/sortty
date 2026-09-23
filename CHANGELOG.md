@@ -2,9 +2,9 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
-## 2026-09-24 — Fixed UI not resizing when the window is enlarged
+## 2026-09-24 — Fixed the file list not growing when the window is enlarged
 
-Enlarging the app window left the UI clipped to its old size (shrinking always worked). Traced to WebView2 not reliably repainting to the new bounds on Windows for sortty's frameless (custom-titlebar) window when it grows. The window now nudges WebView2 to resync its bounds on every resize. See [ADR 0015](docs/adr/0015-window-resize-webview-resync.md).
+Enlarging the window left the scan/browse results looking stuck — the window grew, but the list stayed a fixed height with blank space below it. Each collapsible folder group had its own independently-scrolling box capped at a hardcoded height, and nothing above it in the layout could stretch. All the groups on a page now share one scroll region that fills the window, like a typical file manager, while still only rendering the rows actually in view. See [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).
 
 ## 2026-09-24 — Progress/cancellation, empty trash, release CI & auto-update
 

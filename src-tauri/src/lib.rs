@@ -26,17 +26,6 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(commands::cancel::CancelFlag::default())
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::Resized(size) = event {
-                // Windows/WebView2 workaround: on undecorated (decorations: false)
-                // windows, WebView2's child HWND sometimes fails to pick up the
-                // new bounds when the OS window grows (shrinking is unaffected).
-                // Echoing the size back nudges wry/tao to re-apply SetBounds.
-                if cfg!(windows) {
-                    let _ = window.set_size(*size);
-                }
-            }
-        })
         .invoke_handler(tauri::generate_handler![
             commands::scan::scan_folder,
             commands::plan::generate_plan,

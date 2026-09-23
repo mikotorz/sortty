@@ -2,7 +2,7 @@
   import BrowsePanel from "$lib/components/BrowsePanel.svelte";
 </script>
 
-<div class="flex flex-col gap-4 max-w-3xl">
+<div class="flex flex-col gap-4 max-w-3xl h-full min-h-0">
   <div>
     <h1 class="text-lg font-semibold">Browse</h1>
     <p class="text-sm text-[var(--color-text-muted)]">
@@ -10,7 +10,7 @@
     </p>
   </div>
 
-  <div class="card">
+  <div class="card flex flex-col min-h-0 flex-1">
     <BrowsePanel />
   </div>
 </div>
