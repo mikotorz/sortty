@@ -24,10 +24,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(commands::cancel::CancelFlag::default())
         .invoke_handler(tauri::generate_handler![
             commands::scan::scan_folder,
             commands::plan::generate_plan,
             commands::apply::apply_plan,
+            commands::cancel::cancel_current_operation,
             commands::history::list_runs,
             commands::history::get_run,
             commands::history::undo_run,
@@ -42,6 +45,8 @@ pub fn run() {
             commands::preview::read_file_preview,
             commands::browse::browse_folder,
             commands::browse::delete_files,
+            commands::trash::preview_staging_folder,
+            commands::trash::empty_staging_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

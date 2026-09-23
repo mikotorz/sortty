@@ -16,6 +16,8 @@ class ScanSession {
   selected = $state<Record<string, boolean>>({});
   scanning = $state(false);
   applying = $state(false);
+  scanProgress = $state<number | null>(null);
+  applyProgress = $state<{ completed: number; total: number } | null>(null);
   lastRun = $state<RunRecord | null>(null);
   showFailures = $state(false);
 }

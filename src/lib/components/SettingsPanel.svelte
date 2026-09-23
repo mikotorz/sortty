@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { AlertDialog } from "bits-ui";
   import { fade, fly } from "svelte/transition";
+  import { check, type Update } from "@tauri-apps/plugin-updater";
+  import { relaunch } from "@tauri-apps/plugin-process";
   import {
     getCategoryRules,
     getSettings,
@@ -15,6 +17,7 @@
   import { pushToast } from "../state/toast";
   import { theme, type Theme } from "../state/theme";
   import { cn } from "../cn";
+  import ConfirmModal from "./ConfirmModal.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import X from "@lucide/svelte/icons/x";
@@ -30,6 +33,11 @@
   let saving = $state(false);
   let resetting = $state(false);
   let confirmResetOpen = $state(false);
+
+  let checkingUpdate = $state(false);
+  let updateAvailable = $state<Update | null>(null);
+  let updateConfirmOpen = $state(false);
+  let installingUpdate = $state(false);
 
   onMount(load);
 
@@ -105,6 +113,36 @@
       pushToast("error", `Restore failed: ${e}`);
     } finally {
       resetting = false;
+    }
+  }
+
+  async function checkForUpdates() {
+    checkingUpdate = true;
+    try {
+      const update = await check();
+      if (!update) {
+        pushToast("success", "You're up to date.");
+        return;
+      }
+      updateAvailable = update;
+      updateConfirmOpen = true;
+    } catch (e) {
+      pushToast("error", `Couldn't check for updates: ${e}`);
+    } finally {
+      checkingUpdate = false;
+    }
+  }
+
+  async function confirmInstallUpdate() {
+    if (!updateAvailable) return;
+    updateConfirmOpen = false;
+    installingUpdate = true;
+    try {
+      await updateAvailable.downloadAndInstall();
+      await relaunch();
+    } catch (e) {
+      pushToast("error", `Update failed: ${e}`);
+      installingUpdate = false;
     }
   }
 
@@ -234,6 +272,19 @@
     </div>
   </section>
 
+  <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">Updates</h3>
+    <button
+      type="button"
+      class="btn-ghost"
+      onclick={checkForUpdates}
+      disabled={checkingUpdate}
+    >
+      {#if checkingUpdate}<LoaderCircle size={14} class="animate-spin" />{/if}
+      {checkingUpdate ? "Checking…" : "Check for updates"}
+    </button>
+  </section>
+
   <div class="flex items-center gap-3">
     <button
       type="button"
@@ -301,4 +352,18 @@
       </AlertDialog.Content>
     </AlertDialog.Portal>
   </AlertDialog.Root>
+
+  <ConfirmModal
+    bind:open={updateConfirmOpen}
+    title="Update to v{updateAvailable?.version}?"
+    confirmLabel={installingUpdate ? "Installing…" : "Download and install"}
+    disabled={installingUpdate}
+    onConfirm={confirmInstallUpdate}
+    onCancel={() => (updateConfirmOpen = false)}
+  >
+    {#snippet description()}
+      Sortty will download and install version {updateAvailable?.version}, then
+      restart.
+    {/snippet}
+  </ConfirmModal>
 {/if}

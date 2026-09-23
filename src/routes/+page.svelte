@@ -4,7 +4,11 @@
   import FolderPicker from "$lib/components/FolderPicker.svelte";
   import PreviewTable from "$lib/components/PreviewTable.svelte";
   import ModeSelector from "$lib/components/ModeSelector.svelte";
-  import { applyPlan, generatePlan } from "$lib/api/commands";
+  import {
+    applyPlan,
+    cancelCurrentOperation,
+    generatePlan,
+  } from "$lib/api/commands";
   import { formatBytes } from "$lib/format";
   import { pushToast } from "$lib/state/toast";
   import { selectedRoot } from "$lib/state/stores";
@@ -67,13 +71,20 @@
       return;
     }
     scanSession.scanning = true;
+    scanSession.scanProgress = 0;
     scanSession.lastRun = null;
     try {
       const plan = await generatePlan(
         $selectedRoot,
         scanSession.request,
         scanSession.scanOptions,
+        (count) => (scanSession.scanProgress = count),
       );
+      if (plan === null) {
+        pushToast("info", "Scan cancelled.");
+        scanSession.plan = null;
+        return;
+      }
       scanSession.plan = plan;
       scanSession.selected = Object.fromEntries(
         plan.operations.map((op) => [op.id, op.selected]),
@@ -83,6 +94,7 @@
       scanSession.plan = null;
     } finally {
       scanSession.scanning = false;
+      scanSession.scanProgress = null;
     }
   }
 
@@ -90,23 +102,37 @@
     if (!scanSession.plan) return;
     confirmOpen = false;
     scanSession.applying = true;
+    scanSession.applyProgress = null;
     try {
       const ids = Object.entries(scanSession.selected)
         .filter(([, v]) => v)
         .map(([id]) => id);
-      const run = await applyPlan(scanSession.plan, ids);
+      const run = await applyPlan(
+        scanSession.plan,
+        ids,
+        (completed, total) =>
+          (scanSession.applyProgress = { completed, total }),
+      );
       scanSession.lastRun = run;
       scanSession.showFailures = false;
-      pushToast(
-        "success",
-        `Applied ${run.applied_operations.length} change(s)${run.failed_operations.length ? `, ${run.failed_operations.length} failed` : ""}.`,
-      );
+      if (run.cancelled) {
+        pushToast(
+          "info",
+          `Cancelled after ${run.applied_operations.length} change(s).`,
+        );
+      } else {
+        pushToast(
+          "success",
+          `Applied ${run.applied_operations.length} change(s)${run.failed_operations.length ? `, ${run.failed_operations.length} failed` : ""}.`,
+        );
+      }
       scanSession.plan = null;
       scanSession.selected = {};
     } catch (e) {
       pushToast("error", `Apply failed: ${e}`);
     } finally {
       scanSession.applying = false;
+      scanSession.applyProgress = null;
     }
   }
 </script>
@@ -162,18 +188,31 @@
       </div>
     {/if}
 
-    <button
-      type="button"
-      class="btn-primary self-start px-4 py-2"
-      onclick={scan}
-      disabled={scanSession.scanning || !$selectedRoot}
-    >
-      {#if scanSession.scanning}<LoaderCircle
-          size={15}
-          class="animate-spin"
-        />{/if}
-      {scanSession.scanning ? "Scanning…" : "Scan"}
-    </button>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="btn-primary px-4 py-2"
+        onclick={scan}
+        disabled={scanSession.scanning || !$selectedRoot}
+      >
+        {#if scanSession.scanning}<LoaderCircle
+            size={15}
+            class="animate-spin"
+          />{/if}
+        {scanSession.scanning
+          ? `Scanning… (${scanSession.scanProgress ?? 0} found)`
+          : "Scan"}
+      </button>
+      {#if scanSession.scanning}
+        <button
+          type="button"
+          class="btn-ghost px-3 py-2"
+          onclick={cancelCurrentOperation}
+        >
+          Cancel
+        </button>
+      {/if}
+    </div>
 
     {#if scanSession.lastRun}
       <div
@@ -214,20 +253,47 @@
             selectedBytes,
           )})</span
         >
-        <button
-          type="button"
-          class="btn-primary"
-          onclick={() => (confirmOpen = true)}
-          disabled={scanSession.applying || selectedCount === 0}
-        >
-          {#if scanSession.applying}<LoaderCircle
-              size={14}
-              class="animate-spin"
-            />{/if}
-          {scanSession.applying
-            ? "Applying…"
-            : `Apply ${selectedCount} change(s)`}
-        </button>
+        <div class="flex items-center gap-2">
+          {#if scanSession.applying && scanSession.applyProgress}
+            <div
+              class="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-border)]"
+            >
+              <div
+                class="h-full bg-[var(--color-accent)]"
+                style="width: {(scanSession.applyProgress.completed /
+                  scanSession.applyProgress.total) *
+                  100}%"
+              ></div>
+            </div>
+          {/if}
+          <button
+            type="button"
+            class="btn-primary"
+            onclick={() => (confirmOpen = true)}
+            disabled={scanSession.applying || selectedCount === 0}
+          >
+            {#if scanSession.applying}<LoaderCircle
+                size={14}
+                class="animate-spin"
+              />{/if}
+            {#if scanSession.applying}
+              {scanSession.applyProgress
+                ? `Applying… (${scanSession.applyProgress.completed}/${scanSession.applyProgress.total})`
+                : "Applying…"}
+            {:else}
+              Apply {selectedCount} change(s)
+            {/if}
+          </button>
+          {#if scanSession.applying}
+            <button
+              type="button"
+              class="btn-ghost px-3 py-1.5 text-sm"
+              onclick={cancelCurrentOperation}
+            >
+              Cancel
+            </button>
+          {/if}
+        </div>
       </div>
       <PreviewTable
         plan={scanSession.plan}

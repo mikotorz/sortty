@@ -29,6 +29,12 @@ pub struct RunRecord {
     pub applied_operations: Vec<AppliedOperation>,
     pub failed_operations: Vec<FailedOperation>,
     pub undone: bool,
+    /// True if the user cancelled this run partway through — `applied_operations`
+    /// then holds only what was actually moved before the cancellation, not the
+    /// full plan. Defaults to `false` so runs persisted before this field existed
+    /// still deserialize.
+    #[serde(default)]
+    pub cancelled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +46,8 @@ pub struct RunSummary {
     pub applied_count: usize,
     pub failed_count: usize,
     pub undone: bool,
+    #[serde(default)]
+    pub cancelled: bool,
 }
 
 impl From<&RunRecord> for RunSummary {
@@ -52,6 +60,7 @@ impl From<&RunRecord> for RunSummary {
             applied_count: r.applied_operations.len(),
             failed_count: r.failed_operations.len(),
             undone: r.undone,
+            cancelled: r.cancelled,
         }
     }
 }

@@ -52,15 +52,38 @@ fn move_file(from: &Path, to: &Path) -> Result<(), AppError> {
 }
 
 pub fn apply(plan: &Plan, selected_ids: &[String]) -> RunRecord {
+    apply_with_progress(plan, selected_ids, |_, _| {}, || false)
+}
+
+/// Same as `apply`, but reports `(completed, total)` selected-operation
+/// counts via `on_progress` (the total is known upfront, unlike a scan) and
+/// checks `should_cancel` before starting each operation's move — never
+/// mid-move, so nothing is ever left half-moved. On cancellation, the loop
+/// stops and the returned `RunRecord` has `cancelled: true`, with
+/// `applied_operations` holding whatever was actually moved so far.
+pub fn apply_with_progress(
+    plan: &Plan,
+    selected_ids: &[String],
+    mut on_progress: impl FnMut(usize, usize),
+    should_cancel: impl Fn() -> bool,
+) -> RunRecord {
     let started_at = Utc::now();
     let selected: HashSet<&str> = selected_ids.iter().map(String::as_str).collect();
+    let total = selected.len();
 
     let mut applied = Vec::new();
     let mut failed = Vec::new();
+    let mut cancelled = false;
+    let mut completed = 0usize;
 
     for op in &plan.operations {
         if !selected.contains(op.id.as_str()) {
             continue;
+        }
+
+        if should_cancel() {
+            cancelled = true;
+            break;
         }
 
         let final_destination = resolve_collision(&op.destination);
@@ -77,6 +100,8 @@ pub fn apply(plan: &Plan, selected_ids: &[String]) -> RunRecord {
                 error: e.to_string(),
             }),
         }
+        completed += 1;
+        on_progress(completed, total);
     }
 
     RunRecord {
@@ -88,6 +113,7 @@ pub fn apply(plan: &Plan, selected_ids: &[String]) -> RunRecord {
         applied_operations: applied,
         failed_operations: failed,
         undone: false,
+        cancelled,
     }
 }
 
@@ -130,6 +156,75 @@ mod tests {
         assert!(root.join("Docs/a.txt").exists());
         assert!(root.join("b.txt").exists()); // untouched
         assert!(!root.join("Docs/b.txt").exists());
+    }
+
+    #[test]
+    fn apply_with_progress_reports_completed_of_total() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("a.txt"), b"a").unwrap();
+        fs::write(root.join("b.txt"), b"b").unwrap();
+
+        let op_a = Operation::new(
+            OperationKind::Move,
+            root.join("a.txt"),
+            root.join("Docs/a.txt"),
+            "test",
+            1,
+        );
+        let op_b = Operation::new(
+            OperationKind::Move,
+            root.join("b.txt"),
+            root.join("Docs/b.txt"),
+            "test",
+            1,
+        );
+        let ids = vec![op_a.id.clone(), op_b.id.clone()];
+        let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op_a, op_b]);
+
+        let mut progress = Vec::new();
+        let record = apply_with_progress(
+            &plan,
+            &ids,
+            |completed, total| progress.push((completed, total)),
+            || false,
+        );
+
+        assert!(!record.cancelled);
+        assert_eq!(record.applied_operations.len(), 2);
+        assert_eq!(progress, vec![(1, 2), (2, 2)]);
+    }
+
+    #[test]
+    fn apply_with_progress_stops_before_the_next_move_when_cancelled() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("a.txt"), b"a").unwrap();
+        fs::write(root.join("b.txt"), b"b").unwrap();
+
+        let op_a = Operation::new(
+            OperationKind::Move,
+            root.join("a.txt"),
+            root.join("Docs/a.txt"),
+            "test",
+            1,
+        );
+        let op_b = Operation::new(
+            OperationKind::Move,
+            root.join("b.txt"),
+            root.join("Docs/b.txt"),
+            "test",
+            1,
+        );
+        let ids = vec![op_a.id.clone(), op_b.id.clone()];
+        let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op_a, op_b]);
+
+        let record = apply_with_progress(&plan, &ids, |_, _| {}, || true);
+
+        assert!(record.cancelled);
+        assert!(record.applied_operations.is_empty());
+        assert!(root.join("a.txt").exists());
+        assert!(root.join("b.txt").exists());
     }
 
     /// Regression test for the architecture review's long-path (MAX_PATH)

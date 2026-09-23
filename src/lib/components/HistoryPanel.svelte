@@ -143,6 +143,10 @@
               <span class="text-xs italic text-[var(--color-text-muted)]"
                 >Undone</span
               >
+            {:else if run.cancelled}
+              <span class="text-xs italic text-[var(--color-text-muted)]"
+                >Cancelled</span
+              >
             {:else}
               <button
                 type="button"

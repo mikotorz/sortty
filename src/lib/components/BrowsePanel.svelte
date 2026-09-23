@@ -1,8 +1,13 @@
 <script lang="ts">
   import { open } from "@tauri-apps/plugin-dialog";
   import { Collapsible, Checkbox } from "bits-ui";
-  import { browseFolder, deleteFiles } from "../api/commands";
-  import type { FileEntry } from "../api/types";
+  import {
+    browseFolder,
+    deleteFiles,
+    emptyStagingFolder,
+    previewStagingFolder,
+  } from "../api/commands";
+  import type { EmptyResult, FileEntry, StagingKind } from "../api/types";
   import { formatBytes } from "../format";
   import { pushToast } from "../state/toast";
   import {
@@ -19,6 +24,8 @@
   import Minus from "@lucide/svelte/icons/minus";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import FolderSearch from "@lucide/svelte/icons/folder-search";
+  import Trash2 from "@lucide/svelte/icons/trash-2";
+  import Archive from "@lucide/svelte/icons/archive";
 
   const idOf = (e: FileEntry) => e.path;
 
@@ -29,6 +36,11 @@
   let confirmOpen = $state(false);
   let selected = $state<Record<string, boolean>>({});
   let openGroups = $state<Record<string, boolean>>({});
+
+  let emptyConfirmOpen = $state(false);
+  let emptyKind = $state<StagingKind | null>(null);
+  let emptyPreview = $state<EmptyResult | null>(null);
+  let emptying = $state(false);
 
   let groups = $derived(groupByDir(entries, idOf));
 
@@ -88,6 +100,45 @@
       deleting = false;
     }
   }
+
+  async function startEmpty(kind: StagingKind) {
+    if (!folder) return;
+    const noun = kind === "trash" ? "trash" : "archive";
+    try {
+      const preview = await previewStagingFolder(folder, kind);
+      if (preview.deleted_files === 0) {
+        pushToast("info", `There's nothing in the ${noun} to empty.`);
+        return;
+      }
+      emptyKind = kind;
+      emptyPreview = preview;
+      emptyConfirmOpen = true;
+    } catch (e) {
+      pushToast("error", `Couldn't check the ${noun}: ${e}`);
+    }
+  }
+
+  async function confirmEmpty() {
+    if (!folder || !emptyKind) return;
+    const kind = emptyKind;
+    const noun = kind === "trash" ? "trash" : "archive";
+    emptyConfirmOpen = false;
+    emptying = true;
+    try {
+      const result = await emptyStagingFolder(folder, kind);
+      pushToast(
+        "success",
+        `Permanently deleted ${result.deleted_files} file(s) from the ${noun}, freed ${formatBytes(result.freed_bytes)}.`,
+      );
+      await reload();
+    } catch (e) {
+      pushToast("error", `Couldn't empty the ${noun}: ${e}`);
+    } finally {
+      emptying = false;
+      emptyKind = null;
+      emptyPreview = null;
+    }
+  }
 </script>
 
 <div class="flex items-center gap-2 mb-4">
@@ -107,6 +158,27 @@
     Choose folder…
   </button>
 </div>
+
+{#if folder}
+  <div class="flex items-center gap-2 mb-4">
+    <button
+      type="button"
+      class="btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-sm"
+      onclick={() => startEmpty("trash")}
+      disabled={emptying}
+    >
+      <Trash2 size={14} /> Empty Trash…
+    </button>
+    <button
+      type="button"
+      class="btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-sm"
+      onclick={() => startEmpty("archive")}
+      disabled={emptying}
+    >
+      <Archive size={14} /> Empty Archive…
+    </button>
+  </div>
+{/if}
 
 {#if loading}
   <p class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
@@ -232,5 +304,32 @@
       >.sortty-trash</code
     > folder next to them (not the Windows Recycle Bin), and this can be undone from
     History afterward.
+  {/snippet}
+</ConfirmModal>
+
+<ConfirmModal
+  bind:open={emptyConfirmOpen}
+  title={emptyKind === "trash"
+    ? "Permanently delete trash contents?"
+    : "Permanently delete archived files?"}
+  confirmLabel="Delete permanently"
+  disabled={emptying}
+  onConfirm={confirmEmpty}
+  onCancel={() => {
+    emptyConfirmOpen = false;
+    emptyKind = null;
+    emptyPreview = null;
+  }}
+>
+  {#snippet description()}
+    {#if emptyPreview}
+      This will permanently delete <strong
+        >{emptyPreview.deleted_files} file{emptyPreview.deleted_files === 1
+          ? ""
+          : "s"}</strong
+      >
+      ({formatBytes(emptyPreview.freed_bytes)}). Unlike everything else in
+      sortty, this cannot be undone.
+    {/if}
   {/snippet}
 </ConfirmModal>

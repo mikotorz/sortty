@@ -90,6 +90,7 @@ export interface RunRecord {
   applied_operations: AppliedOperation[];
   failed_operations: FailedOperation[];
   undone: boolean;
+  cancelled: boolean;
 }
 
 export interface RunSummary {
@@ -100,6 +101,7 @@ export interface RunSummary {
   applied_count: number;
   failed_count: number;
   undone: boolean;
+  cancelled: boolean;
 }
 
 export interface UndoResult {
@@ -114,6 +116,13 @@ export interface CategoryDef {
 export interface CategoryRules {
   categories: Record<string, CategoryDef>;
   other_folder_name: string;
+}
+
+export type StagingKind = "trash" | "archive";
+
+export interface EmptyResult {
+  deleted_files: number;
+  freed_bytes: number;
 }
 
 export interface AppSettings {

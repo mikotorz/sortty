@@ -1,7 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AppSettings,
   CategoryRules,
+  EmptyResult,
   FileEntry,
   Plan,
   PlanRequest,
@@ -9,6 +10,7 @@ import type {
   RunSummary,
   ScanOptions,
   ScanResult,
+  StagingKind,
   UndoResult,
 } from "./types";
 
@@ -19,19 +21,40 @@ export function scanFolder(
   return invoke("scan_folder", { root, options });
 }
 
+/** Resolves to `null` if the user cancelled the scan before a plan existed. */
 export function generatePlan(
   root: string,
   request: PlanRequest,
   scanOptions?: ScanOptions,
-): Promise<Plan> {
-  return invoke("generate_plan", { root, request, scanOptions });
+  onProgress?: (count: number) => void,
+): Promise<Plan | null> {
+  const channel = new Channel<{ count: number }>();
+  if (onProgress) {
+    channel.onmessage = (message) => onProgress(message.count);
+  }
+  return invoke("generate_plan", {
+    root,
+    request,
+    scanOptions,
+    onProgress: channel,
+  });
 }
 
 export function applyPlan(
   plan: Plan,
   selectedIds: string[],
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<RunRecord> {
-  return invoke("apply_plan", { plan, selectedIds });
+  const channel = new Channel<{ completed: number; total: number }>();
+  if (onProgress) {
+    channel.onmessage = (message) =>
+      onProgress(message.completed, message.total);
+  }
+  return invoke("apply_plan", { plan, selectedIds, onProgress: channel });
+}
+
+export function cancelCurrentOperation(): Promise<void> {
+  return invoke("cancel_current_operation");
 }
 
 export function listRuns(limit?: number): Promise<RunSummary[]> {
@@ -88,4 +111,18 @@ export function browseFolder(path: string): Promise<FileEntry[]> {
 
 export function deleteFiles(root: string, paths: string[]): Promise<RunRecord> {
   return invoke("delete_files", { root, paths });
+}
+
+export function previewStagingFolder(
+  root: string,
+  kind: StagingKind,
+): Promise<EmptyResult> {
+  return invoke("preview_staging_folder", { root, kind });
+}
+
+export function emptyStagingFolder(
+  root: string,
+  kind: StagingKind,
+): Promise<EmptyResult> {
+  return invoke("empty_staging_folder", { root, kind });
 }

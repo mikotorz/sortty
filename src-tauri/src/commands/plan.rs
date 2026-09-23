@@ -1,7 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use tauri::ipc::Channel;
+use tauri::{AppHandle, Manager, State};
 
+use crate::commands::cancel::CancelFlag;
 use crate::config::settings;
 use crate::domain::plan::Plan;
 use crate::engine::cleanup::{self, CleanupOptions, StaleAction};
@@ -10,6 +12,14 @@ use crate::engine::scanner::{self, ScanOptions};
 use crate::engine::sort_by_date::{self, DateGranularity, DateSource, SortByDateOptions};
 use crate::engine::sort_by_type;
 use crate::error::AppError;
+
+/// A running "N scanned so far" count — there's no total, since `scan`'s
+/// underlying walk is a lazy single-pass iterator that doesn't know the file
+/// count ahead of time.
+#[derive(Clone, Serialize)]
+pub struct ScanProgress {
+    pub count: usize,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
@@ -30,16 +40,38 @@ pub enum PlanRequest {
     },
 }
 
+/// Returns `Ok(None)` if the user cancelled the scan before a plan could be
+/// generated — there's nothing partial to salvage from an interrupted scan,
+/// since a plan needs the complete entry list to be built from.
 #[tauri::command]
 pub async fn generate_plan(
     app: AppHandle,
+    cancel_flag: State<'_, CancelFlag>,
     root: String,
     scan_options: Option<ScanOptions>,
     request: PlanRequest,
-) -> Result<Plan, AppError> {
+    on_progress: Channel<ScanProgress>,
+) -> Result<Option<Plan>, AppError> {
+    cancel_flag.reset();
     let root_path = PathBuf::from(root);
     let scan_options = scan_options.unwrap_or_default();
-    let entries = scanner::scan(&root_path, &scan_options)?;
+
+    let mut last_sent = 0usize;
+    let outcome = scanner::scan_with_progress(
+        &root_path,
+        &scan_options,
+        |count| {
+            if count - last_sent >= 50 {
+                on_progress.send(ScanProgress { count }).ok();
+                last_sent = count;
+            }
+        },
+        || cancel_flag.is_cancelled(),
+    )?;
+    if outcome.cancelled {
+        return Ok(None);
+    }
+    let entries = outcome.entries;
 
     let config_dir = app
         .path()
@@ -97,5 +129,5 @@ pub async fn generate_plan(
         }
     };
 
-    Ok(plan)
+    Ok(Some(plan))
 }

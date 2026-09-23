@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import {
   applyPlan,
   browseFolder,
+  cancelCurrentOperation,
   deleteFiles,
   generatePlan,
   getRun,
@@ -15,6 +16,11 @@ import type { AppSettings, CategoryRules, Plan } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  // A minimal stand-in for the real Channel class — generatePlan/applyPlan
+  // construct one internally, so it needs to exist under this mock too.
+  Channel: class Channel {
+    onmessage: (data: unknown) => void = () => {};
+  },
 }));
 
 const mockedInvoke = vi.mocked(invoke);
@@ -36,24 +42,32 @@ describe("commands.ts", () => {
     });
   });
 
-  it("generatePlan invokes generate_plan with root, request, and scanOptions", async () => {
+  it("generatePlan invokes generate_plan with root, request, scanOptions, and a progress channel", async () => {
     mockedInvoke.mockResolvedValueOnce({} as Plan);
     await generatePlan("C:\\Downloads", { mode: "sort_by_type" });
     expect(mockedInvoke).toHaveBeenCalledWith("generate_plan", {
       root: "C:\\Downloads",
       request: { mode: "sort_by_type" },
       scanOptions: undefined,
+      onProgress: expect.any(Channel),
     });
   });
 
-  it("applyPlan invokes apply_plan with plan and selectedIds", async () => {
+  it("applyPlan invokes apply_plan with plan, selectedIds, and a progress channel", async () => {
     mockedInvoke.mockResolvedValueOnce({});
     const plan = { id: "p1" } as unknown as Plan;
     await applyPlan(plan, ["op-1", "op-2"]);
     expect(mockedInvoke).toHaveBeenCalledWith("apply_plan", {
       plan,
       selectedIds: ["op-1", "op-2"],
+      onProgress: expect.any(Channel),
     });
+  });
+
+  it("cancelCurrentOperation invokes cancel_current_operation with no args", async () => {
+    mockedInvoke.mockResolvedValueOnce(undefined);
+    await cancelCurrentOperation();
+    expect(mockedInvoke).toHaveBeenCalledWith("cancel_current_operation");
   });
 
   it("getRun and undoRun pass runId through", async () => {

@@ -2,6 +2,14 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Progress/cancellation, empty trash, release CI & auto-update
+
+Closes the three remaining 2026-09-23 architecture-review issues.
+
+- **Scan and apply now report progress and can be cancelled.** Scanning shows a running "files found so far" count (a scan can't know the total upfront); applying shows a real "N of M operations" progress bar, since the operation count is known ahead of time. Cancelling an apply stops before the next file move (never mid-move) and keeps whatever was already applied — History now shows a "Cancelled" run instead of an unexplained partial one. See [ADR 0013](docs/adr/0013-scan-apply-progress-and-cancellation.md).
+- **Added "Empty Trash" / "Empty Archive" to Browse** — the app's first genuinely irreversible action, permanently deleting a chosen folder's `.sortty-trash`/`.sortty-archive` staging folder and everything in it. Always shows a file-count/size preview first, and is skipped entirely with an info toast if there's nothing to empty. Does not appear in History — there's nothing to undo. See [ADR 0014](docs/adr/0014-empty-trash-scope-and-design.md).
+- **Added CI-built, signed installers and in-app auto-update.** Pushing a version tag now builds and drafts a GitHub Release with signed Windows installers via `.github/workflows/release.yml`; a new "Check for updates" button in Settings lets installed copies check for and install the latest release. Update checks are manual only, by design — see [ADR 0012](docs/adr/0012-manual-update-checks.md). See [docs/RELEASING.md](docs/RELEASING.md) for the release process and one-time signing-key setup.
+
 ## 2026-09-24 — Follow-up fixes from the architecture review
 
 Closed five of the eight issues the 2026-09-23 architecture review filed (the remaining three — progress/cancellation for long scans, release-CI automation, and the "empty the trash" feature — are larger feature/infra work left for their own passes).

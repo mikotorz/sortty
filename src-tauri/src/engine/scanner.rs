@@ -92,6 +92,32 @@ fn is_protected_root(root: &Path) -> bool {
 }
 
 pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppError> {
+    Ok(scan_with_progress(root, options, |_| {}, || false)?.entries)
+}
+
+/// The result of a (possibly cancelled) scan. `cancelled` is only ever `true`
+/// when `should_cancel` returned `true` mid-walk — `entries` then holds
+/// whatever was found before the walk stopped, which callers should discard
+/// rather than build a plan from.
+pub struct ScanOutcome {
+    pub entries: Vec<FileEntry>,
+    pub cancelled: bool,
+}
+
+/// Same as `scan`, but reports how many entries have been visited so far via
+/// `on_progress` and checks `should_cancel` before visiting each one. `scan`
+/// is a thin wrapper over this with a no-op progress callback and a
+/// cancellation check that's always `false`.
+///
+/// There's no way to report "N of M" here — `WalkDir` is a lazy, single-pass
+/// iterator that discovers entries as it walks, so the total isn't known
+/// ahead of time. `on_progress` only ever gets a running count.
+pub fn scan_with_progress(
+    root: &Path,
+    options: &ScanOptions,
+    mut on_progress: impl FnMut(usize),
+    should_cancel: impl Fn() -> bool,
+) -> Result<ScanOutcome, AppError> {
     if !root.exists() {
         return Err(AppError::NotFound(root.to_path_buf()));
     }
@@ -125,7 +151,17 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
         });
 
     let mut entries = Vec::new();
+    let mut visited = 0usize;
     for item in walker {
+        if should_cancel() {
+            return Ok(ScanOutcome {
+                entries,
+                cancelled: true,
+            });
+        }
+        visited += 1;
+        on_progress(visited);
+
         // A single unreadable entry (permission-denied, locked, a cloud-sync
         // placeholder, a directory that vanished mid-walk) shouldn't fail the
         // whole scan — skip it and keep going.
@@ -175,7 +211,10 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
         });
     }
 
-    Ok(entries)
+    Ok(ScanOutcome {
+        entries,
+        cancelled: false,
+    })
 }
 
 #[cfg(test)]
@@ -193,6 +232,41 @@ mod tests {
         let entries = scan(dir.path(), &ScanOptions::default()).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].file_name, "a.txt");
+    }
+
+    #[test]
+    fn scan_with_progress_reports_a_running_count() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("a.txt"), b"a").unwrap();
+        fs::write(dir.path().join("b.txt"), b"b").unwrap();
+
+        let mut counts = Vec::new();
+        let outcome = scan_with_progress(
+            dir.path(),
+            &ScanOptions::default(),
+            |n| counts.push(n),
+            || false,
+        )
+        .unwrap();
+
+        assert!(!outcome.cancelled);
+        assert_eq!(outcome.entries.len(), 2);
+        // 3, not 2: WalkDir's first visited item is the root directory
+        // itself (depth 0), before the two files.
+        assert_eq!(counts, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn scan_with_progress_stops_early_when_cancelled() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("a.txt"), b"a").unwrap();
+        fs::write(dir.path().join("b.txt"), b"b").unwrap();
+
+        let outcome =
+            scan_with_progress(dir.path(), &ScanOptions::default(), |_| {}, || true).unwrap();
+
+        assert!(outcome.cancelled);
+        assert!(outcome.entries.is_empty());
     }
 
     #[test]

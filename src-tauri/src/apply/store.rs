@@ -89,6 +89,7 @@ mod tests {
             applied_operations: vec![],
             failed_operations: vec![],
             undone: false,
+            cancelled: false,
         }
     }
 

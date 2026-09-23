@@ -15,6 +15,7 @@ Sortty is a desktop tool that proposes and applies file-organizing operations ag
   - `Archive` — a stale file being set aside, into `.sortty-archive` inside the root.
 - **Run** — the record of actually _applying_ a plan (or a subset of its selected operations). A `RunRecord` captures which operations succeeded (`AppliedOperation`, with enough information to reverse it) and which failed (`FailedOperation`, with a plain-English `error`). Runs are persisted as JSON under the OS app-data directory so History and Undo survive restarts.
 - **Undo** — reversing a run by replaying its `AppliedOperation`s in reverse (`to → from`). A path that's been reoccupied since the run is reported as a **conflict** rather than silently overwritten or aborting the rest of the undo.
+- **Empty trash** — the one genuinely irreversible action in the app: permanently deleting everything inside a root's `.sortty-trash` or `.sortty-archive` staging folder (`std::fs::remove_dir_all`), scoped to one root at a time from Browse, always behind a dry-run count/size preview and a strongly-worded confirmation. Unlike every other action, it does not go through the Run/History/Undo pipeline — there is nothing to undo.
 
 ## The one invariant that matters: nothing is ever really deleted
 
@@ -22,7 +23,7 @@ Sortty never calls a real delete. "Removing" a duplicate or archiving a stale fi
 
 Manually deleting a file from Browse follows the same rule: it's a `PlanMode::Delete` plan whose operations are ordinary `MoveToTrash` moves into a `.sortty-trash` folder next to the deleted file, applied and recorded through the exact same `RunRecord`/History/Undo path as a Dedup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
 
-The only genuinely irreversible action in the app's design is a future "empty the trash" feature — not yet built — which will need its own explicit, strongly-worded confirmation.
+The only genuinely irreversible action in the app's design is **emptying the trash** (see Empty trash above) — permanently deleting the `.sortty-trash`/`.sortty-archive` staging folders themselves, which necessarily falls outside the move-not-delete guarantee everything else in this section describes.
 
 ## Safety-by-default posture
 
