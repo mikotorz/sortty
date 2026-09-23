@@ -2,6 +2,10 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Fixed UI not resizing when the window is enlarged
+
+Enlarging the app window left the UI clipped to its old size (shrinking always worked). Traced to WebView2 not reliably repainting to the new bounds on Windows for sortty's frameless (custom-titlebar) window when it grows. The window now nudges WebView2 to resync its bounds on every resize. See [ADR 0015](docs/adr/0015-window-resize-webview-resync.md).
+
 ## 2026-09-24 — Progress/cancellation, empty trash, release CI & auto-update
 
 Closes the three remaining 2026-09-23 architecture-review issues.
