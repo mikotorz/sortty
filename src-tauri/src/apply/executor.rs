@@ -132,6 +132,44 @@ mod tests {
         assert!(!root.join("Docs/b.txt").exists());
     }
 
+    /// Regression test for the architecture review's long-path (MAX_PATH)
+    /// concern: no `\\?\` prefixing exists anywhere in this module, so this
+    /// proves `move_file` (via `create_dir_all` + `rename`) already succeeds
+    /// for a destination well past Windows' legacy 260-character limit on
+    /// the toolchain this app builds with. If this test ever starts failing,
+    /// that's the trigger to add explicit long-path prefixing — not before.
+    #[test]
+    fn moves_file_to_a_destination_path_over_260_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("f.txt"), b"x").unwrap();
+
+        let long_segment = "a".repeat(50);
+        let mut dest_dir = root.to_path_buf();
+        for _ in 0..5 {
+            dest_dir = dest_dir.join(&long_segment);
+        }
+        let destination = dest_dir.join("f.txt");
+        assert!(
+            destination.as_os_str().len() > 260,
+            "test setup should itself exceed MAX_PATH"
+        );
+
+        let op = Operation::new(
+            OperationKind::Move,
+            root.join("f.txt"),
+            destination.clone(),
+            "test",
+            1,
+        );
+        let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op.clone()]);
+        let record = apply(&plan, std::slice::from_ref(&op.id));
+
+        assert_eq!(record.applied_operations.len(), 1);
+        assert!(record.failed_operations.is_empty());
+        assert!(destination.exists());
+    }
+
     #[test]
     fn resolves_name_collisions_instead_of_overwriting() {
         let dir = tempfile::tempdir().unwrap();

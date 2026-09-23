@@ -18,6 +18,7 @@
   } from "../grouping";
   import FileThumb from "./FileThumb.svelte";
   import VirtualList from "./VirtualList.svelte";
+  import VirtualGrid from "./VirtualGrid.svelte";
   import Search from "@lucide/svelte/icons/search";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Check from "@lucide/svelte/icons/check";
@@ -247,40 +248,43 @@
           </VirtualList>
         </div>
       {:else}
-        <div
-          class="grid gap-3 p-3 border-t border-[var(--color-border-subtle)]"
-          style="grid-template-columns: repeat(auto-fill, minmax({SCALE_PX[
-            $previewScale
-          ] + 56}px, 1fr));"
-        >
-          {#each ops as op (op.id)}
-            <button
-              type="button"
-              class={cn(
-                "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
-                selected[op.id]
-                  ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
-                  : "border-transparent hover:bg-[var(--color-surface-hover)]",
-              )}
-              onclick={() =>
-                (selected = { ...selected, [op.id]: !selected[op.id] })}
-            >
-              <div
-                class="chk absolute left-1.5 top-1.5"
-                data-state={selected[op.id] ? "checked" : "unchecked"}
-                aria-hidden="true"
+        <div class="p-3 border-t border-[var(--color-border-subtle)]">
+          <VirtualGrid
+            items={ops}
+            itemKey={idOf}
+            minTileWidth={SCALE_PX[$previewScale] + 56}
+            tileHeight={SCALE_PX[$previewScale] + 62}
+            gap={12}
+          >
+            {#snippet tile(op: Operation)}
+              <button
+                type="button"
+                class={cn(
+                  "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
+                  selected[op.id]
+                    ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
+                    : "border-transparent hover:bg-[var(--color-surface-hover)]",
+                )}
+                onclick={() =>
+                  (selected = { ...selected, [op.id]: !selected[op.id] })}
               >
-                {#if selected[op.id]}<Check size={11} />{/if}
-              </div>
-              <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
-              <span class="w-full truncate text-xs" title={op.source}
-                >{fileNameOf(op.source)}</span
-              >
-              <span class="text-[0.7rem] text-[var(--color-text-muted)]"
-                >{formatBytes(op.size_bytes)}</span
-              >
-            </button>
-          {/each}
+                <div
+                  class="chk absolute left-1.5 top-1.5"
+                  data-state={selected[op.id] ? "checked" : "unchecked"}
+                  aria-hidden="true"
+                >
+                  {#if selected[op.id]}<Check size={11} />{/if}
+                </div>
+                <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
+                <span class="w-full truncate text-xs" title={op.source}
+                  >{fileNameOf(op.source)}</span
+                >
+                <span class="text-[0.7rem] text-[var(--color-text-muted)]"
+                  >{formatBytes(op.size_bytes)}</span
+                >
+              </button>
+            {/snippet}
+          </VirtualGrid>
         </div>
       {/if}
     </Collapsible.Content>

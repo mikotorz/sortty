@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PlanRequest } from "../api/types";
+  import { defaultRequestForMode } from "../state/planRequestDefaults";
   import { cn } from "../cn";
   import FolderTree from "@lucide/svelte/icons/folder-tree";
   import Clock from "@lucide/svelte/icons/clock";
@@ -41,29 +42,7 @@
   ];
 
   function setMode(mode: PlanRequest["mode"]) {
-    switch (mode) {
-      case "sort_by_type":
-        request = { mode };
-        break;
-      case "sort_by_date":
-        request = { mode, date_source: "modified", granularity: "year_month" };
-        break;
-      case "dedup":
-        request = {
-          mode,
-          min_size_bytes: 1024,
-          keep_strategy: "oldest_modified",
-        };
-        break;
-      case "cleanup":
-        request = {
-          mode,
-          stale_days: 180,
-          date_source: "modified",
-          action: "archive",
-        };
-        break;
-    }
+    request = defaultRequestForMode(mode);
   }
 </script>
 

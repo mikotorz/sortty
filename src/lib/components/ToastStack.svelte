@@ -6,11 +6,13 @@
   import Info from "@lucide/svelte/icons/info";
 </script>
 
-<div class="toast-stack" role="status" aria-live="polite">
+<div class="toast-stack">
   {#each $toasts as t (t.id)}
     <button
       type="button"
       class="toast {t.kind}"
+      role={t.kind === "error" ? "alert" : "status"}
+      aria-live={t.kind === "error" ? "assertive" : "polite"}
       transition:fly={{ y: 12, duration: 180 }}
       onclick={() => dismissToast(t.id)}
     >

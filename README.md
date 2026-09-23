@@ -13,7 +13,7 @@ Point it at a folder and pick a mode:
 
 Every mode always shows a **dry-run preview** first — nothing moves until you review and confirm. "Deleting" a duplicate or stale file never really deletes it: it's moved into a `.sortty-trash` / `.sortty-archive` folder inside the scanned folder, and the whole run can be undone from the History tab.
 
-The preview can be filtered by path, and viewed either as a list or as a thumbnail grid (with a small/medium/large size control) — image files show a real thumbnail, everything else shows a file-type icon.
+The preview can be filtered by path, and viewed either as a list or as a thumbnail grid (with a small/medium/large size control) — image files show a real thumbnail, everything else shows a file-type icon. Both views only render the rows/tiles near the viewport, so a folder with thousands of files stays responsive. The app also remembers your last chosen folder and mode across restarts.
 
 By default, only files sitting loose at the top level of the chosen folder are touched — existing subfolders (an installer's files, a driver package, a project folder) are left completely alone unless you explicitly opt in to scanning subfolders too. When subfolders are included, specific ones can be excluded by picking them from a list, so you can scan recursively without touching a folder you don't want reorganized.
 

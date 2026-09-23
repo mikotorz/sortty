@@ -90,6 +90,46 @@ mod tests {
         assert!(!root.join("Docs/a.txt").exists());
     }
 
+    /// Mirrors executor.rs's long-path regression test for the restore
+    /// direction: proves `undo` (via `create_dir_all` + `rename`) already
+    /// succeeds when the applied operation's `to` path is well past
+    /// Windows' legacy 260-character MAX_PATH limit.
+    #[test]
+    fn restores_a_file_from_a_path_over_260_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        let long_segment = "a".repeat(50);
+        let mut long_dir = root.to_path_buf();
+        for _ in 0..5 {
+            long_dir = long_dir.join(&long_segment);
+        }
+        fs::create_dir_all(&long_dir).unwrap();
+        let to = long_dir.join("a.txt");
+        fs::write(&to, b"a").unwrap();
+        assert!(
+            to.as_os_str().len() > 260,
+            "test setup should itself exceed MAX_PATH"
+        );
+
+        let record = make_record(
+            root,
+            vec![AppliedOperation {
+                id: "1".into(),
+                kind: OperationKind::Move,
+                from: root.join("a.txt"),
+                to: to.clone(),
+                size_bytes: 1,
+            }],
+        );
+
+        let result = undo(&record).unwrap();
+        assert_eq!(result.restored, 1);
+        assert!(result.conflicts.is_empty());
+        assert!(root.join("a.txt").exists());
+        assert!(!to.exists());
+    }
+
     #[test]
     fn reports_conflict_when_original_path_is_occupied() {
         let dir = tempfile::tempdir().unwrap();

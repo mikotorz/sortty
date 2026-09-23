@@ -270,6 +270,26 @@ mod tests {
         assert!(!is_protected_root(Path::new("C:\\Users\\me\\Downloads")));
     }
 
+    /// `Path`'s UNC prefix component (`\\server\share`) behaves like a drive
+    /// root — `.parent()` is `None` for the share root itself, and the
+    /// top-level-name check treats a folder directly under it the same as
+    /// `C:\Windows` — so `is_protected_root` needs no UNC-specific code, but
+    /// this had zero test coverage before, per the architecture review.
+    #[test]
+    fn rejects_unc_share_root_and_protected_folder_under_it() {
+        assert!(is_protected_root(Path::new(r"\\server\share")));
+        assert!(is_protected_root(Path::new(r"\\server\share\Windows")));
+        assert!(is_protected_root(Path::new(
+            r"\\server\share\Program Files"
+        )));
+        assert!(!is_protected_root(Path::new(
+            r"\\server\share\Users\me\Downloads"
+        )));
+        assert!(!is_protected_root(Path::new(
+            r"\\server\share\SomeRandomFolder"
+        )));
+    }
+
     #[test]
     fn scan_returns_protected_path_error_for_drive_root() {
         let err = scan(Path::new("C:\\"), &ScanOptions::default()).unwrap_err();

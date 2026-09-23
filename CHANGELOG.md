@@ -2,6 +2,16 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Follow-up fixes from the architecture review
+
+Closed five of the eight issues the 2026-09-23 architecture review filed (the remaining three — progress/cancellation for long scans, release-CI automation, and the "empty the trash" feature — are larger feature/infra work left for their own passes).
+
+- **Grid view is now virtualized**: the plan-preview table's thumbnail/grid view (the one 2D view the earlier virtualization pass explicitly skipped) now only renders tiles near the viewport via a new `VirtualGrid` component, matching list view's existing behavior for large folders. See [ADR 0009](docs/adr/0009-grid-virtualization-as-separate-component.md).
+- **The app now remembers your last folder and mode**: `default_root`/`last_used_mode` were already round-tripped through Settings but never actually wired up — the last chosen folder and mode now silently restore on the next launch. No new setting to toggle; it just works, like the rest of the app's "remember X" behavior.
+- **Verified long-path (MAX_PATH) and UNC-path handling** were flagged as untested, not necessarily broken — traced through the actual `std::path` semantics and added regression tests instead of speculative `\\?\` prefixing code. Both were already correct; see [ADR 0010](docs/adr/0010-verify-before-fixing-long-path-unc.md).
+- **Added test coverage for the `commands/` (Tauri command) layer**, which previously had zero tests despite being the actual surface exposed to the frontend. Extracted each command's real logic into a plain, directly-testable function (`delete_files_at`, `undo_last_run_at`, `undo_run_at`, `scan_folder_at`, `read_file_preview_at`, `browse_folder_at`), matching the testable-core/thin-glue shape every other backend layer already uses. See [ADR 0011](docs/adr/0011-command-layer-testing-via-extracted-functions.md).
+- **Accessibility**: the sidebar's current page is now announced via `aria-current="page"` (previously only a CSS class signaled it), and error toasts now use `role="alert"`/`aria-live="assertive"` instead of the same polite-only announcement every toast kind used before.
+
 ## 2026-09-23 — Architecture review: safety fixes, de-duplication, virtualization, CI
 
 First full codebase/architecture review since the initial build. Fixed the real bugs it found, cleaned up duplication it flagged, and closed the process gaps (no CI, no lint, no LICENSE) — see [ADR 0007](docs/adr/0007-validate-configurable-folder-names.md) and [ADR 0008](docs/adr/0008-ci-and-lint-gates.md).

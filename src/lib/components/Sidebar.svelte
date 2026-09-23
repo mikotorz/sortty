@@ -16,9 +16,11 @@
 
 <nav class="sidebar">
   {#each items as item (item.href)}
+    {@const isActive = $page.url.pathname === item.href}
     <a
       class="nav-item"
-      class:active={$page.url.pathname === item.href}
+      class:active={isActive}
+      aria-current={isActive ? "page" : undefined}
       href={resolve(item.href)}
     >
       <item.icon size={17} />
