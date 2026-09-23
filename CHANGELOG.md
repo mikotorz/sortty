@@ -2,6 +2,21 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-23 — Architecture review: safety fixes, de-duplication, virtualization, CI
+
+First full codebase/architecture review since the initial build. Fixed the real bugs it found, cleaned up duplication it flagged, and closed the process gaps (no CI, no lint, no LICENSE) — see [ADR 0007](docs/adr/0007-validate-configurable-folder-names.md) and [ADR 0008](docs/adr/0008-ci-and-lint-gates.md).
+
+- **Fixed a real safety gap**: category names and the trash/archive folder names (both user-editable in Settings) were never validated before being joined onto the scan root, so a value like `"../../Desktop"` could move files outside the scanned folder — undercutting the core "nothing leaves root" promise. Rejected at save time now, with a plain-English error.
+- **Fixed**: a crash mid-write to `settings.toml`, `categories.toml`, or the run-history index could leave a corrupted/truncated file behind, breaking History/Undo (or Settings) for every run, not just the one being saved. All config/history writes are now atomic (write-then-rename).
+- **Fixed**: History and Settings could get stuck on their loading spinner forever, with no error shown, if the initial data load failed — both now show an error toast and recover.
+- **Fixed**: the scanner aborted an entire scan if a single file couldn't be read (permission-denied, locked, a cloud-sync placeholder) — it now skips that one file and keeps going.
+- Removed a panic risk in duplicate-detection's keeper selection, and switched it to hash files via a streaming reader instead of loading whole files into memory (relevant for large duplicate candidates like videos or disk images).
+- De-duplicated the grouped-list logic that had drifted slightly between the plan-preview table and Browse (the exact kind of drift that already caused a shipped bug), and merged the two near-identical confirmation dialogs into one.
+- The plan-preview table and Browse now virtualize their list view, so a folder with thousands of loose files no longer renders that many DOM rows at once. (Grid view isn't virtualized yet.)
+- Added a starter frontend test suite (vitest) — previously there were zero frontend tests despite solid Rust coverage.
+- Added ESLint + Prettier for the frontend, `rustfmt`/`clippy` gates for the backend, and a GitHub Actions CI pipeline running all of it (tests, type-checking, lint, build) on every push/PR to `main`.
+- Added the missing `LICENSE` file (MIT, as `package.json` already declared).
+
 ## 2026-09-23 — Browse & delete sorted files, exclude subfolders from a scan, dark-mode native controls
 
 - Added a new **Browse** page: pick any folder (typically a sorted destination like `Images/`), see everything currently in it, and delete files that don't belong. "Delete" moves files into a `.sortty-trash` folder next to them rather than deleting for real — it shows up in History and can be undone, exactly like a duplicate-cleanup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).

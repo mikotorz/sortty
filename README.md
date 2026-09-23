@@ -35,12 +35,18 @@ npm run tauri dev
 
 Requires the Rust MSVC toolchain on Windows (`rustup toolchain install stable-x86_64-pc-windows-msvc` plus [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the C++ workload) — see [docs/adr/0004-msvc-toolchain-required.md](docs/adr/0004-msvc-toolchain-required.md) for why the GNU/MinGW toolchain doesn't work here.
 
-### Tests
+### Tests, linting, and formatting
 
 ```bash
 cd src-tauri && cargo test   # Rust unit/integration tests
+cargo clippy && cargo fmt    # Rust lint / format (run from src-tauri/)
 npm run check                # Svelte/TypeScript type-checking
+npm test                     # frontend unit tests (vitest)
+npm run lint                 # ESLint + Prettier check
+npm run format                # Prettier --write
 ```
+
+All of the above run in CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) on every push/PR to `main` — see [ADR 0008](docs/adr/0008-ci-and-lint-gates.md).
 
 ### Build
 
