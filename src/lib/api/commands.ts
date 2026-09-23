@@ -12,7 +12,10 @@ import type {
   UndoResult,
 } from "./types";
 
-export function scanFolder(root: string, options?: ScanOptions): Promise<ScanResult> {
+export function scanFolder(
+  root: string,
+  options?: ScanOptions,
+): Promise<ScanResult> {
   return invoke("scan_folder", { root, options });
 }
 
@@ -24,7 +27,10 @@ export function generatePlan(
   return invoke("generate_plan", { root, request, scanOptions });
 }
 
-export function applyPlan(plan: Plan, selectedIds: string[]): Promise<RunRecord> {
+export function applyPlan(
+  plan: Plan,
+  selectedIds: string[],
+): Promise<RunRecord> {
   return invoke("apply_plan", { plan, selectedIds });
 }
 

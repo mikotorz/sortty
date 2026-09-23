@@ -9,6 +9,7 @@ Accepted
 The product owner asked for a way to delete files that already landed in a sorted destination folder (e.g. junk that ended up in `Images/`) without leaving the app. This is the first feature where the user directly asks for "delete" as a verb, which runs straight into [ADR 0002](0002-moves-not-deletes.md): sortty has exactly one primitive, `Operation` (always a move), and no delete anywhere in the codebase, specifically so apply and undo can share one code path.
 
 Two options existed:
+
 - **Add a real delete** (`fs::remove_file`, or the OS Recycle Bin via a crate like `trash`) — matches the word "delete" literally, but reintroduces the exact irreversibility problem ADR 0002 was written to avoid, and would need its own apply/undo/history handling parallel to the existing move-based one.
 - **Keep it a move**, into a `.sortty-trash` folder next to the deleted file, exactly like Dedup already does for duplicates.
 

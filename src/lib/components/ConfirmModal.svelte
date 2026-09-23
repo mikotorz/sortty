@@ -38,13 +38,24 @@
       {#snippet child({ props, open })}
         {#if open}
           <div {...props} transition:fly={{ y: 8, duration: 140 }}>
-            <Dialog.Title class="text-base font-semibold m-0">{title}</Dialog.Title>
-            <Dialog.Description class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+            <Dialog.Title class="text-base font-semibold m-0"
+              >{title}</Dialog.Title
+            >
+            <Dialog.Description
+              class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]"
+            >
               {@render description()}
             </Dialog.Description>
             <div class="mt-4 flex justify-end gap-2">
-              <button type="button" class="btn-ghost" onclick={onCancel}> Cancel </button>
-              <button type="button" class="btn-primary" onclick={onConfirm} {disabled}>
+              <button type="button" class="btn-ghost" onclick={onCancel}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                onclick={onConfirm}
+                {disabled}
+              >
                 {confirmLabel}
               </button>
             </div>

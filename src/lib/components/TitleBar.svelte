@@ -25,17 +25,32 @@
     <span class="brand-name" data-tauri-drag-region>Sortty</span>
   </div>
   <div class="controls">
-    <button type="button" class="control" aria-label="Minimize" onclick={() => appWindow.minimize()}>
+    <button
+      type="button"
+      class="control"
+      aria-label="Minimize"
+      onclick={() => appWindow.minimize()}
+    >
       <Minus size={14} />
     </button>
-    <button type="button" class="control" aria-label={maximized ? "Restore" : "Maximize"} onclick={() => appWindow.toggleMaximize()}>
+    <button
+      type="button"
+      class="control"
+      aria-label={maximized ? "Restore" : "Maximize"}
+      onclick={() => appWindow.toggleMaximize()}
+    >
       {#if maximized}
         <Copy size={13} />
       {:else}
         <Square size={12} />
       {/if}
     </button>
-    <button type="button" class="control close" aria-label="Close" onclick={() => appWindow.close()}>
+    <button
+      type="button"
+      class="control close"
+      aria-label="Close"
+      onclick={() => appWindow.close()}
+    >
       <X size={15} />
     </button>
   </div>

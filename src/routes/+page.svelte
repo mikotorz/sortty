@@ -13,32 +13,51 @@
   import X from "@lucide/svelte/icons/x";
 
   async function addExcludedFolder() {
-    const path = await open({ directory: true, multiple: false, title: "Choose a subfolder to exclude" });
-    if (typeof path === "string" && !scanSession.scanOptions.exclude_folders.includes(path)) {
-      scanSession.scanOptions.exclude_folders = [...scanSession.scanOptions.exclude_folders, path];
+    const path = await open({
+      directory: true,
+      multiple: false,
+      title: "Choose a subfolder to exclude",
+    });
+    if (
+      typeof path === "string" &&
+      !scanSession.scanOptions.exclude_folders.includes(path)
+    ) {
+      scanSession.scanOptions.exclude_folders = [
+        ...scanSession.scanOptions.exclude_folders,
+        path,
+      ];
     }
   }
 
   function removeExcludedFolder(path: string) {
-    scanSession.scanOptions.exclude_folders = scanSession.scanOptions.exclude_folders.filter((p) => p !== path);
+    scanSession.scanOptions.exclude_folders =
+      scanSession.scanOptions.exclude_folders.filter((p) => p !== path);
   }
 
   let confirmOpen = $state(false);
 
-  let selectedCount = $derived(Object.values(scanSession.selected).filter(Boolean).length);
+  let selectedCount = $derived(
+    Object.values(scanSession.selected).filter(Boolean).length,
+  );
   let selectedBytes = $derived(
     scanSession.plan
-      ? scanSession.plan.operations.filter((op) => scanSession.selected[op.id]).reduce((sum, op) => sum + op.size_bytes, 0)
+      ? scanSession.plan.operations
+          .filter((op) => scanSession.selected[op.id])
+          .reduce((sum, op) => sum + op.size_bytes, 0)
       : 0,
   );
   let trashedBytes = $derived(
     scanSession.lastRun
-      ? scanSession.lastRun.applied_operations.filter((o) => o.kind === "move_to_trash").reduce((s, o) => s + o.size_bytes, 0)
+      ? scanSession.lastRun.applied_operations
+          .filter((o) => o.kind === "move_to_trash")
+          .reduce((s, o) => s + o.size_bytes, 0)
       : 0,
   );
   let archivedBytes = $derived(
     scanSession.lastRun
-      ? scanSession.lastRun.applied_operations.filter((o) => o.kind === "archive").reduce((s, o) => s + o.size_bytes, 0)
+      ? scanSession.lastRun.applied_operations
+          .filter((o) => o.kind === "archive")
+          .reduce((s, o) => s + o.size_bytes, 0)
       : 0,
   );
 
@@ -50,9 +69,15 @@
     scanSession.scanning = true;
     scanSession.lastRun = null;
     try {
-      const plan = await generatePlan($selectedRoot, scanSession.request, scanSession.scanOptions);
+      const plan = await generatePlan(
+        $selectedRoot,
+        scanSession.request,
+        scanSession.scanOptions,
+      );
       scanSession.plan = plan;
-      scanSession.selected = Object.fromEntries(plan.operations.map((op) => [op.id, op.selected]));
+      scanSession.selected = Object.fromEntries(
+        plan.operations.map((op) => [op.id, op.selected]),
+      );
     } catch (e) {
       pushToast("error", `Scan failed: ${e}`);
       scanSession.plan = null;
@@ -89,7 +114,9 @@
 <div class="flex flex-col gap-4 max-w-3xl">
   <div>
     <h1 class="text-lg font-semibold">Sort &amp; Clean</h1>
-    <p class="text-sm text-[var(--color-text-muted)]">Pick a folder and a mode, review the plan, then apply.</p>
+    <p class="text-sm text-[var(--color-text-muted)]">
+      Pick a folder and a mode, review the plan, then apply.
+    </p>
   </div>
 
   <div class="card flex flex-col gap-4">
@@ -98,13 +125,18 @@
     <ModeSelector bind:request={scanSession.request} />
 
     <label class="flex items-center gap-2 text-sm">
-      <input type="checkbox" bind:checked={scanSession.scanOptions.include_subfolders} />
+      <input
+        type="checkbox"
+        bind:checked={scanSession.scanOptions.include_subfolders}
+      />
       Include files in subfolders too
     </label>
     {#if scanSession.scanOptions.include_subfolders}
-      <p class="text-xs -mt-2 rounded-md bg-[var(--color-warning-bg)] text-[var(--color-warning-fg)] px-2.5 py-1.5">
-        This will also reach into existing subfolders (installer folders, app folders, etc.) and move
-        individual files out of them.
+      <p
+        class="text-xs -mt-2 rounded-md bg-[var(--color-warning-bg)] text-[var(--color-warning-fg)] px-2.5 py-1.5"
+      >
+        This will also reach into existing subfolders (installer folders, app
+        folders, etc.) and move individual files out of them.
       </p>
 
       <div class="flex flex-col gap-2">
@@ -112,12 +144,21 @@
         {#each scanSession.scanOptions.exclude_folders as path (path)}
           <div class="flex items-center gap-2">
             <span class="field flex-1 truncate" title={path}>{path}</span>
-            <button type="button" class="btn-ghost px-2 py-1.5" aria-label="Stop excluding this folder" onclick={() => removeExcludedFolder(path)}>
+            <button
+              type="button"
+              class="btn-ghost px-2 py-1.5"
+              aria-label="Stop excluding this folder"
+              onclick={() => removeExcludedFolder(path)}
+            >
               <X size={14} />
             </button>
           </div>
         {/each}
-        <button type="button" class="btn-ghost self-start" onclick={addExcludedFolder}>Exclude a folder…</button>
+        <button
+          type="button"
+          class="btn-ghost self-start"
+          onclick={addExcludedFolder}>Exclude a folder…</button
+        >
       </div>
     {/if}
 
@@ -127,16 +168,30 @@
       onclick={scan}
       disabled={scanSession.scanning || !$selectedRoot}
     >
-      {#if scanSession.scanning}<LoaderCircle size={15} class="animate-spin" />{/if}
+      {#if scanSession.scanning}<LoaderCircle
+          size={15}
+          class="animate-spin"
+        />{/if}
       {scanSession.scanning ? "Scanning…" : "Scan"}
     </button>
 
     {#if scanSession.lastRun}
-      <div class="rounded-md bg-[var(--color-success-bg)] text-[var(--color-success-fg)] px-3 py-2.5 text-sm flex flex-col gap-1">
-        {#if trashedBytes > 0}<p class="m-0">{formatBytes(trashedBytes)} moved to trash (not yet permanently deleted).</p>{/if}
-        {#if archivedBytes > 0}<p class="m-0">{formatBytes(archivedBytes)} archived.</p>{/if}
+      <div
+        class="rounded-md bg-[var(--color-success-bg)] text-[var(--color-success-fg)] px-3 py-2.5 text-sm flex flex-col gap-1"
+      >
+        {#if trashedBytes > 0}<p class="m-0">
+            {formatBytes(trashedBytes)} moved to trash (not yet permanently deleted).
+          </p>{/if}
+        {#if archivedBytes > 0}<p class="m-0">
+            {formatBytes(archivedBytes)} archived.
+          </p>{/if}
         {#if scanSession.lastRun.failed_operations.length > 0}
-          <button type="button" class="self-start underline text-xs" onclick={() => (scanSession.showFailures = !scanSession.showFailures)}>
+          <button
+            type="button"
+            class="self-start underline text-xs"
+            onclick={() =>
+              (scanSession.showFailures = !scanSession.showFailures)}
+          >
             {scanSession.showFailures ? "Hide" : "Show"} failure details
           </button>
           {#if scanSession.showFailures}
@@ -154,18 +209,30 @@
   {#if scanSession.plan}
     <div class="card">
       <div class="flex items-center justify-between text-sm mb-3">
-        <span class="text-[var(--color-text-muted)]">{selectedCount} of {scanSession.plan.operations.length} selected ({formatBytes(selectedBytes)})</span>
+        <span class="text-[var(--color-text-muted)]"
+          >{selectedCount} of {scanSession.plan.operations.length} selected ({formatBytes(
+            selectedBytes,
+          )})</span
+        >
         <button
           type="button"
           class="btn-primary"
           onclick={() => (confirmOpen = true)}
           disabled={scanSession.applying || selectedCount === 0}
         >
-          {#if scanSession.applying}<LoaderCircle size={14} class="animate-spin" />{/if}
-          {scanSession.applying ? "Applying…" : `Apply ${selectedCount} change(s)`}
+          {#if scanSession.applying}<LoaderCircle
+              size={14}
+              class="animate-spin"
+            />{/if}
+          {scanSession.applying
+            ? "Applying…"
+            : `Apply ${selectedCount} change(s)`}
         </button>
       </div>
-      <PreviewTable plan={scanSession.plan} bind:selected={scanSession.selected} />
+      <PreviewTable
+        plan={scanSession.plan}
+        bind:selected={scanSession.selected}
+      />
     </div>
   {/if}
 </div>
@@ -179,9 +246,9 @@
   onCancel={() => (confirmOpen = false)}
 >
   {#snippet description()}
-    Files will be moved to their new locations now. Nothing is permanently deleted — duplicates
-    and stale files go into a <code>.sortty-trash</code> / <code>.sortty-archive</code> folder inside
-    the scanned folder (not the Windows Recycle Bin), and this whole run can be undone from
-    History afterward.
+    Files will be moved to their new locations now. Nothing is permanently
+    deleted — duplicates and stale files go into a <code>.sortty-trash</code> /
+    <code>.sortty-archive</code> folder inside the scanned folder (not the Windows
+    Recycle Bin), and this whole run can be undone from History afterward.
   {/snippet}
 </ConfirmModal>

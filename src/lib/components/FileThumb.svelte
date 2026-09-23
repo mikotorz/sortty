@@ -12,11 +12,44 @@
 
   let { path, size = 96 }: { path: string; size?: number } = $props();
 
-  const IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"]);
+  const IMAGE_EXT = new Set([
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "bmp",
+    "svg",
+  ]);
   const VIDEO_EXT = new Set(["mp4", "mkv", "avi", "mov", "wmv", "webm"]);
   const AUDIO_EXT = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a"]);
-  const DOC_EXT = new Set(["pdf", "doc", "docx", "txt", "md", "xls", "xlsx", "ppt", "pptx", "csv", "rtf"]);
-  const CODE_EXT = new Set(["js", "ts", "py", "rs", "json", "html", "css", "svelte", "c", "cpp", "java", "go"]);
+  const DOC_EXT = new Set([
+    "pdf",
+    "doc",
+    "docx",
+    "txt",
+    "md",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "csv",
+    "rtf",
+  ]);
+  const CODE_EXT = new Set([
+    "js",
+    "ts",
+    "py",
+    "rs",
+    "json",
+    "html",
+    "css",
+    "svelte",
+    "c",
+    "cpp",
+    "java",
+    "go",
+  ]);
   const ARCHIVE_EXT = new Set(["zip", "rar", "7z", "tar", "gz"]);
   const INSTALLER_EXT = new Set(["exe", "msi", "msix"]);
 

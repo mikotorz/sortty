@@ -61,7 +61,10 @@
     loadingFailuresFor = runId;
     try {
       const record = await getRun(runId);
-      expandedFailures = { ...expandedFailures, [runId]: record.failed_operations };
+      expandedFailures = {
+        ...expandedFailures,
+        [runId]: record.failed_operations,
+      };
     } catch (e) {
       pushToast("error", `Couldn't load failure details: ${e}`);
     } finally {
@@ -75,9 +78,13 @@
     <LoaderCircle size={15} class="animate-spin" /> Loading history…
   </p>
 {:else if runs.length === 0}
-  <div class="flex flex-col items-center gap-2 py-10 text-[var(--color-text-muted)]">
+  <div
+    class="flex flex-col items-center gap-2 py-10 text-[var(--color-text-muted)]"
+  >
     <History size={28} />
-    <p class="m-0 text-sm">No runs yet. Apply a plan from Sort &amp; Clean to see it here.</p>
+    <p class="m-0 text-sm">
+      No runs yet. Apply a plan from Sort &amp; Clean to see it here.
+    </p>
   </div>
 {:else}
   <table class="w-full border-collapse text-sm">
@@ -94,13 +101,24 @@
     <tbody>
       {#each runs as run (run.run_id)}
         <tr class="hover:bg-[var(--color-surface-hover)]">
-          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5">{new Date(run.started_at).toLocaleString()}</td>
-          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5">{modeLabels[run.plan_mode] ?? run.plan_mode}</td>
-          <td class="max-w-0 w-[35%] overflow-hidden text-ellipsis whitespace-nowrap border-t border-[var(--color-border-subtle)] px-2.5 py-1.5" title={run.root}>
+          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+            >{new Date(run.started_at).toLocaleString()}</td
+          >
+          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+            >{modeLabels[run.plan_mode] ?? run.plan_mode}</td
+          >
+          <td
+            class="max-w-0 w-[35%] overflow-hidden text-ellipsis whitespace-nowrap border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+            title={run.root}
+          >
             {run.root}
           </td>
-          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5">{run.applied_count}</td>
-          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5">
+          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+            >{run.applied_count}</td
+          >
+          <td
+            class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+          >
             <span class="inline-flex items-center gap-1">
               {run.failed_count}
               {#if run.failed_count > 0}
@@ -110,17 +128,32 @@
                   onclick={() => toggleFailures(run.run_id)}
                 >
                   {loadingFailuresFor === run.run_id ? "…" : "why?"}
-                  <ChevronDown size={12} class={expandedFailures[run.run_id] ? "rotate-180" : ""} />
+                  <ChevronDown
+                    size={12}
+                    class={expandedFailures[run.run_id] ? "rotate-180" : ""}
+                  />
                 </button>
               {/if}
             </span>
           </td>
-          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5">
+          <td
+            class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+          >
             {#if run.undone}
-              <span class="text-xs italic text-[var(--color-text-muted)]">Undone</span>
+              <span class="text-xs italic text-[var(--color-text-muted)]"
+                >Undone</span
+              >
             {:else}
-              <button type="button" class="btn-ghost px-2.5 py-1 text-xs" onclick={() => handleUndo(run.run_id)} disabled={undoingId === run.run_id}>
-                {#if undoingId === run.run_id}<LoaderCircle size={12} class="animate-spin" />{/if}
+              <button
+                type="button"
+                class="btn-ghost px-2.5 py-1 text-xs"
+                onclick={() => handleUndo(run.run_id)}
+                disabled={undoingId === run.run_id}
+              >
+                {#if undoingId === run.run_id}<LoaderCircle
+                    size={12}
+                    class="animate-spin"
+                  />{/if}
                 {undoingId === run.run_id ? "Undoing…" : "Undo"}
               </button>
             {/if}

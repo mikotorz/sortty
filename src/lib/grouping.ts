@@ -17,7 +17,10 @@ export function fileNameOf(path: string): string {
 }
 
 /** Groups `items` by directory (via `pathOf`), sorted by directory name. */
-export function groupByDir<T>(items: T[], pathOf: (item: T) => string): [string, T[]][] {
+export function groupByDir<T>(
+  items: T[],
+  pathOf: (item: T) => string,
+): [string, T[]][] {
   const map = new Map<string, T[]>();
   for (const item of items) {
     const key = dirOf(pathOf(item));
@@ -43,7 +46,10 @@ export function isGroupIndeterminate<T>(
   idOf: (item: T) => string,
   selected: Record<string, boolean>,
 ): boolean {
-  return !isGroupChecked(group, idOf, selected) && group.some((item) => selected[idOf(item)]);
+  return (
+    !isGroupChecked(group, idOf, selected) &&
+    group.some((item) => selected[idOf(item)])
+  );
 }
 
 /** Returns a new selection record with every item in `group` set to `value`. */

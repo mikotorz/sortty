@@ -9,6 +9,7 @@ Accepted
 Two of the four modes (`Dedup`, `Cleanup`) conceptually "remove" files: a duplicate copy, or a stale file nobody's touched in months. A file-organizing tool that makes mistakes here is actively dangerous — false-positive duplicate detection or an overly aggressive stale-file threshold could destroy something the user needed.
 
 Two conventional options existed for "removing" a file:
+
 - **Send it to the OS Recycle Bin.** Familiar recovery UI, but Windows doesn't expose a simple, reliable Rust API for this — the available approaches are fragile (shell API quirks, no easy programmatic verification that the move succeeded) and it's a separate mental model from the "sort" operations, which just move files around normally.
 - **Delete it for real** (`fs::remove_file`). Fastest to implement, but irreversible, and irreversible-by-default is the wrong posture for a tool whose entire job is bulk, semi-automated file operations.
 

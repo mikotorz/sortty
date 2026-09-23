@@ -1,5 +1,6 @@
 export type OperationKind = "move" | "move_to_trash" | "archive";
-export type PlanMode = "sort_by_type" | "sort_by_date" | "dedup" | "cleanup" | "delete";
+export type PlanMode =
+  "sort_by_type" | "sort_by_date" | "dedup" | "cleanup" | "delete";
 export type DateSource = "modified" | "created";
 export type DateGranularity = "year" | "year_month";
 export type KeepStrategy = "oldest_modified" | "shortest_path";
@@ -54,9 +55,18 @@ export interface Plan {
 
 export type PlanRequest =
   | { mode: "sort_by_type" }
-  | { mode: "sort_by_date"; date_source: DateSource; granularity: DateGranularity }
+  | {
+      mode: "sort_by_date";
+      date_source: DateSource;
+      granularity: DateGranularity;
+    }
   | { mode: "dedup"; min_size_bytes: number; keep_strategy: KeepStrategy }
-  | { mode: "cleanup"; stale_days: number; date_source: DateSource; action: StaleAction };
+  | {
+      mode: "cleanup";
+      stale_days: number;
+      date_source: DateSource;
+      action: StaleAction;
+    };
 
 export interface AppliedOperation {
   id: string;

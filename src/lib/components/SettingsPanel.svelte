@@ -40,7 +40,10 @@
       rules = r;
       appSettings = s;
       extensionsText = Object.fromEntries(
-        Object.entries(r.categories).map(([name, def]) => [name, def.extensions.join(", ")]),
+        Object.entries(r.categories).map(([name, def]) => [
+          name,
+          def.extensions.join(", "),
+        ]),
       );
     } catch (e) {
       pushToast("error", `Couldn't load settings: ${e}`);
@@ -92,7 +95,10 @@
       rules = r;
       appSettings = s;
       extensionsText = Object.fromEntries(
-        Object.entries(r.categories).map(([name, def]) => [name, def.extensions.join(", ")]),
+        Object.entries(r.categories).map(([name, def]) => [
+          name,
+          def.extensions.join(", "),
+        ]),
       );
       pushToast("success", "Settings restored to defaults.");
     } catch (e) {
@@ -116,13 +122,17 @@
 {:else}
   <section class="mb-6">
     <h3 class="mb-2 text-sm font-semibold">Appearance</h3>
-    <div class="inline-flex rounded-md border border-[var(--color-border)] p-0.5">
+    <div
+      class="inline-flex rounded-md border border-[var(--color-border)] p-0.5"
+    >
       {#each themeOptions as opt (opt.value)}
         <button
           type="button"
           class={cn(
             "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm",
-            $theme === opt.value ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
+            $theme === opt.value
+              ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+              : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
           )}
           onclick={() => theme.set(opt.value)}
         >
@@ -135,20 +145,39 @@
 
   <section class="mb-6">
     <h3 class="mb-0.5 text-sm font-semibold">File type categories</h3>
-    <p class="mt-0 mb-3 text-xs text-[var(--color-text-muted)]">Destination folder names and the extensions that route to them.</p>
+    <p class="mt-0 mb-3 text-xs text-[var(--color-text-muted)]">
+      Destination folder names and the extensions that route to them.
+    </p>
     <div class="flex flex-col gap-2">
       {#each Object.keys(rules.categories) as name (name)}
         <div class="flex items-center gap-2">
           <span class="w-28 shrink-0 text-sm font-medium">{name}</span>
-          <input class="field flex-1" type="text" bind:value={extensionsText[name]} placeholder="jpg, png, gif" />
-          <button type="button" class="btn-ghost px-2 py-1.5" aria-label="Remove category" onclick={() => removeCategory(name)}>
+          <input
+            class="field flex-1"
+            type="text"
+            bind:value={extensionsText[name]}
+            placeholder="jpg, png, gif"
+          />
+          <button
+            type="button"
+            class="btn-ghost px-2 py-1.5"
+            aria-label="Remove category"
+            onclick={() => removeCategory(name)}
+          >
             <X size={14} />
           </button>
         </div>
       {/each}
       <div class="flex items-center gap-2">
-        <input class="field flex-1" type="text" placeholder="New category name" bind:value={newCategoryName} />
-        <button type="button" class="btn-ghost" onclick={addCategory}>Add category</button>
+        <input
+          class="field flex-1"
+          type="text"
+          placeholder="New category name"
+          bind:value={newCategoryName}
+        />
+        <button type="button" class="btn-ghost" onclick={addCategory}
+          >Add category</button
+        >
       </div>
     </div>
     <label class="mt-3 flex items-center gap-2 text-sm">
@@ -161,7 +190,12 @@
     <h3 class="mb-2 text-sm font-semibold">Stale-file cleanup</h3>
     <label class="flex items-center gap-2 text-sm">
       Stale after (days)
-      <input class="field max-w-[8rem]" type="number" min="1" bind:value={appSettings.cleanup.stale_days} />
+      <input
+        class="field max-w-[8rem]"
+        type="number"
+        min="1"
+        bind:value={appSettings.cleanup.stale_days}
+      />
     </label>
   </section>
 
@@ -169,7 +203,12 @@
     <h3 class="mb-2 text-sm font-semibold">Duplicate detection</h3>
     <label class="flex items-center gap-2 text-sm">
       Minimum size (bytes)
-      <input class="field max-w-[8rem]" type="number" min="0" bind:value={appSettings.dedup.min_size_bytes} />
+      <input
+        class="field max-w-[8rem]"
+        type="number"
+        min="0"
+        bind:value={appSettings.dedup.min_size_bytes}
+      />
     </label>
   </section>
 
@@ -178,23 +217,46 @@
     <div class="flex flex-col gap-2">
       <label class="flex items-center gap-2 text-sm">
         Trash folder name
-        <input class="field max-w-[10rem]" type="text" bind:value={appSettings.trash.staging_folder_name} />
+        <input
+          class="field max-w-[10rem]"
+          type="text"
+          bind:value={appSettings.trash.staging_folder_name}
+        />
       </label>
       <label class="flex items-center gap-2 text-sm">
         Archive folder name
-        <input class="field max-w-[10rem]" type="text" bind:value={appSettings.trash.archive_folder_name} />
+        <input
+          class="field max-w-[10rem]"
+          type="text"
+          bind:value={appSettings.trash.archive_folder_name}
+        />
       </label>
     </div>
   </section>
 
   <div class="flex items-center gap-3">
-    <button type="button" class="btn-primary" onclick={saveAll} disabled={saving}>
+    <button
+      type="button"
+      class="btn-primary"
+      onclick={saveAll}
+      disabled={saving}
+    >
       {#if saving}<LoaderCircle size={14} class="animate-spin" />{/if}
       {saving ? "Saving…" : "Save settings"}
     </button>
-    <button type="button" class="btn-ghost" onclick={openConfigFolder}>Open config folder</button>
-    <button type="button" class="btn-ghost" onclick={() => (confirmResetOpen = true)} disabled={resetting}>
-      {#if resetting}<LoaderCircle size={14} class="animate-spin" />{:else}<RotateCcw size={14} />{/if}
+    <button type="button" class="btn-ghost" onclick={openConfigFolder}
+      >Open config folder</button
+    >
+    <button
+      type="button"
+      class="btn-ghost"
+      onclick={() => (confirmResetOpen = true)}
+      disabled={resetting}
+    >
+      {#if resetting}<LoaderCircle
+          size={14}
+          class="animate-spin"
+        />{:else}<RotateCcw size={14} />{/if}
       Restore defaults
     </button>
   </div>
@@ -215,14 +277,23 @@
         {#snippet child({ props, open })}
           {#if open}
             <div {...props} transition:fly={{ y: 8, duration: 140 }}>
-              <AlertDialog.Title class="text-base font-semibold m-0">Restore default settings?</AlertDialog.Title>
-              <AlertDialog.Description class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
-                This replaces your file type categories, cleanup thresholds, and trash/archive folder names with
-                the built-in defaults. This can't be undone.
+              <AlertDialog.Title class="text-base font-semibold m-0"
+                >Restore default settings?</AlertDialog.Title
+              >
+              <AlertDialog.Description
+                class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]"
+              >
+                This replaces your file type categories, cleanup thresholds, and
+                trash/archive folder names with the built-in defaults. This
+                can't be undone.
               </AlertDialog.Description>
               <div class="mt-4 flex justify-end gap-2">
-                <AlertDialog.Cancel class="btn-ghost">Cancel</AlertDialog.Cancel>
-                <AlertDialog.Action class="btn-primary" onclick={restoreDefaults}>Restore defaults</AlertDialog.Action>
+                <AlertDialog.Cancel class="btn-ghost">Cancel</AlertDialog.Cancel
+                >
+                <AlertDialog.Action
+                  class="btn-primary"
+                  onclick={restoreDefaults}>Restore defaults</AlertDialog.Action
+                >
               </div>
             </div>
           {/if}

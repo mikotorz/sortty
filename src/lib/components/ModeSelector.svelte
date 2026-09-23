@@ -8,11 +8,36 @@
 
   let { request = $bindable() }: { request: PlanRequest } = $props();
 
-  const modes: { value: PlanRequest["mode"]; label: string; blurb: string; icon: typeof FolderTree }[] = [
-    { value: "sort_by_type", label: "Sort by type", blurb: "Group files into Images/, Documents/, Videos/, etc.", icon: FolderTree },
-    { value: "sort_by_date", label: "Sort by date", blurb: "Group files into year/month folders.", icon: Clock },
-    { value: "dedup", label: "Find duplicates", blurb: "Find identical files and move extras to trash.", icon: Fingerprint },
-    { value: "cleanup", label: "Clean up stale files", blurb: "Archive files untouched for a long time.", icon: Archive },
+  const modes: {
+    value: PlanRequest["mode"];
+    label: string;
+    blurb: string;
+    icon: typeof FolderTree;
+  }[] = [
+    {
+      value: "sort_by_type",
+      label: "Sort by type",
+      blurb: "Group files into Images/, Documents/, Videos/, etc.",
+      icon: FolderTree,
+    },
+    {
+      value: "sort_by_date",
+      label: "Sort by date",
+      blurb: "Group files into year/month folders.",
+      icon: Clock,
+    },
+    {
+      value: "dedup",
+      label: "Find duplicates",
+      blurb: "Find identical files and move extras to trash.",
+      icon: Fingerprint,
+    },
+    {
+      value: "cleanup",
+      label: "Clean up stale files",
+      blurb: "Archive files untouched for a long time.",
+      icon: Archive,
+    },
   ];
 
   function setMode(mode: PlanRequest["mode"]) {
@@ -24,10 +49,19 @@
         request = { mode, date_source: "modified", granularity: "year_month" };
         break;
       case "dedup":
-        request = { mode, min_size_bytes: 1024, keep_strategy: "oldest_modified" };
+        request = {
+          mode,
+          min_size_bytes: 1024,
+          keep_strategy: "oldest_modified",
+        };
         break;
       case "cleanup":
-        request = { mode, stale_days: 180, date_source: "modified", action: "archive" };
+        request = {
+          mode,
+          stale_days: 180,
+          date_source: "modified",
+          action: "archive",
+        };
         break;
     }
   }
@@ -39,11 +73,17 @@
       type="button"
       class={cn(
         "flex flex-col items-start gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition-colors",
-        request.mode === m.value && "border-[var(--color-accent)] bg-[var(--color-surface-hover)]",
+        request.mode === m.value &&
+          "border-[var(--color-accent)] bg-[var(--color-surface-hover)]",
       )}
       onclick={() => setMode(m.value)}
     >
-      <m.icon size={17} class={request.mode === m.value ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"} />
+      <m.icon
+        size={17}
+        class={request.mode === m.value
+          ? "text-[var(--color-accent)]"
+          : "text-[var(--color-text-muted)]"}
+      />
       <strong class="text-sm font-medium">{m.label}</strong>
       <span class="text-xs text-[var(--color-text-muted)]">{m.blurb}</span>
     </button>
@@ -69,7 +109,12 @@
   {:else if request.mode === "dedup"}
     <label class="flex flex-col gap-1 text-sm">
       Minimum file size to consider (bytes)
-      <input class="field" type="number" min="0" bind:value={request.min_size_bytes} />
+      <input
+        class="field"
+        type="number"
+        min="0"
+        bind:value={request.min_size_bytes}
+      />
     </label>
     <label class="flex flex-col gap-1 text-sm">
       Keep
@@ -81,7 +126,12 @@
   {:else if request.mode === "cleanup"}
     <label class="flex flex-col gap-1 text-sm">
       Stale after (days)
-      <input class="field" type="number" min="1" bind:value={request.stale_days} />
+      <input
+        class="field"
+        type="number"
+        min="1"
+        bind:value={request.stale_days}
+      />
     </label>
     <label class="flex flex-col gap-1 text-sm">
       Date source

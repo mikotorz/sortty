@@ -9,6 +9,7 @@ Accepted
 Early versions of Sortty defaulted `ScanOptions::include_subfolders` to `true` — Sort by Type/Date walked every subfolder of the chosen root and reassigned files individually into category/date folders. Tried against a real Downloads folder, this reached into things like a "MATLAB installer" or "AMD drivers" folder — subfolders whose files need to stay together as a unit for the installer to work — and would have scattered their contents into `Images/`, `Documents/`, `Installers/`, etc. This was caught during manual testing, not by any automated check, which is itself a signal that the default was wrong rather than that a heuristic needed tuning.
 
 Two narrower fixes were considered and rejected:
+
 - **Auto-skip "bundle-like" folders** (heuristically detect subfolders that look like an app/installer bundle). Unpredictable — legitimate mixed-content folders could be misdetected either way, and a heuristic the user can't see or reason about is a worse UX than a plain default.
 - **Manual exclude list** the user maintains in Settings. Puts the burden on the user to remember to exclude every such folder ahead of time, which fails silently the first time they forget.
 

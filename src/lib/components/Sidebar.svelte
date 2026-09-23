@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { resolve } from "$app/paths";
   import WandTwo from "@lucide/svelte/icons/wand-2";
   import History from "@lucide/svelte/icons/history";
   import Settings from "@lucide/svelte/icons/settings";
@@ -10,7 +11,7 @@
     { href: "/browse", label: "Browse", icon: FolderOpen },
     { href: "/history", label: "History", icon: History },
     { href: "/settings", label: "Settings", icon: Settings },
-  ];
+  ] as const;
 </script>
 
 <nav class="sidebar">
@@ -18,7 +19,7 @@
     <a
       class="nav-item"
       class:active={$page.url.pathname === item.href}
-      href={item.href}
+      href={resolve(item.href)}
     >
       <item.icon size={17} />
       <span>{item.label}</span>

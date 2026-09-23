@@ -5,7 +5,12 @@
   import type { FileEntry } from "../api/types";
   import { formatBytes } from "../format";
   import { pushToast } from "../state/toast";
-  import { groupByDir, isGroupChecked, isGroupIndeterminate, withGroupSelection } from "../grouping";
+  import {
+    groupByDir,
+    isGroupChecked,
+    isGroupIndeterminate,
+    withGroupSelection,
+  } from "../grouping";
   import ConfirmModal from "./ConfirmModal.svelte";
   import VirtualList from "./VirtualList.svelte";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
@@ -38,7 +43,11 @@
   }
 
   async function pickFolder() {
-    const path = await open({ directory: true, multiple: false, title: "Choose a sorted folder to browse" });
+    const path = await open({
+      directory: true,
+      multiple: false,
+      title: "Choose a sorted folder to browse",
+    });
     if (typeof path === "string") {
       folder = path;
       await reload();
@@ -68,7 +77,10 @@
         .filter(([, v]) => v)
         .map(([path]) => path);
       const run = await deleteFiles(folder, paths);
-      pushToast("success", `Moved ${run.applied_operations.length} file(s) to trash.`);
+      pushToast(
+        "success",
+        `Moved ${run.applied_operations.length} file(s) to trash.`,
+      );
       await reload();
     } catch (e) {
       pushToast("error", `Delete failed: ${e}`);
@@ -79,13 +91,19 @@
 </script>
 
 <div class="flex items-center gap-2 mb-4">
-  <div class="field flex flex-1 items-center gap-2 text-[var(--color-text-muted)]">
+  <div
+    class="field flex flex-1 items-center gap-2 text-[var(--color-text-muted)]"
+  >
     <FolderOpen size={15} class="shrink-0" />
     <span class="truncate {folder ? 'text-[var(--color-text)]' : ''}">
       {folder ?? "No folder selected"}
     </span>
   </div>
-  <button type="button" class="btn-primary whitespace-nowrap" onclick={pickFolder}>
+  <button
+    type="button"
+    class="btn-primary whitespace-nowrap"
+    onclick={pickFolder}
+  >
     Choose folder…
   </button>
 </div>
@@ -95,15 +113,25 @@
     <LoaderCircle size={15} class="animate-spin" /> Reading folder…
   </p>
 {:else if !folder}
-  <div class="flex flex-col items-center gap-2 py-10 text-[var(--color-text-muted)]">
+  <div
+    class="flex flex-col items-center gap-2 py-10 text-[var(--color-text-muted)]"
+  >
     <FolderSearch size={28} />
-    <p class="m-0 text-sm">Pick a sorted folder (e.g. Images, Documents) to see what's in it.</p>
+    <p class="m-0 text-sm">
+      Pick a sorted folder (e.g. Images, Documents) to see what's in it.
+    </p>
   </div>
 {:else if entries.length === 0}
-  <p class="py-6 text-sm text-[var(--color-text-muted)]">This folder is empty.</p>
+  <p class="py-6 text-sm text-[var(--color-text-muted)]">
+    This folder is empty.
+  </p>
 {:else}
-  <div class="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5 mb-3">
-    <span class="text-sm text-[var(--color-text-muted)]">{entries.length} file(s)</span>
+  <div
+    class="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5 mb-3"
+  >
+    <span class="text-sm text-[var(--color-text-muted)]"
+      >{entries.length} file(s)</span
+    >
     <button
       type="button"
       class="btn-primary"
@@ -121,7 +149,9 @@
       open={isGroupOpen(dir)}
       onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
     >
-      <div class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5">
+      <div
+        class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
+      >
         <Checkbox.Root
           checked={isGroupChecked(group, idOf, selected)}
           indeterminate={isGroupIndeterminate(group, idOf, selected)}
@@ -129,13 +159,22 @@
           class="chk"
         >
           {#snippet children({ checked, indeterminate })}
-            {#if indeterminate}<Minus size={11} />{:else if checked}<Check size={11} />{/if}
+            {#if indeterminate}<Minus size={11} />{:else if checked}<Check
+                size={11}
+              />{/if}
           {/snippet}
         </Checkbox.Root>
-        <Collapsible.Trigger class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm">
-          <ChevronRight size={14} class="chevron shrink-0 text-[var(--color-text-muted)]" />
+        <Collapsible.Trigger
+          class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm"
+        >
+          <ChevronRight
+            size={14}
+            class="chevron shrink-0 text-[var(--color-text-muted)]"
+          />
           <code class="text-[0.8rem]">{dir}</code>
-          <span class="text-xs text-[var(--color-text-muted)]">({group.length})</span>
+          <span class="text-xs text-[var(--color-text-muted)]"
+            >({group.length})</span
+          >
         </Collapsible.Trigger>
       </div>
       <Collapsible.Content>
@@ -149,20 +188,28 @@
               >
                 <Checkbox.Root
                   checked={selected[entry.path]}
-                  onCheckedChange={(v) => (selected = { ...selected, [entry.path]: v === true })}
+                  onCheckedChange={(v) =>
+                    (selected = { ...selected, [entry.path]: v === true })}
                   class="chk"
                 >
                   {#snippet children({ checked })}
                     {#if checked}<Check size={11} />{/if}
                   {/snippet}
                 </Checkbox.Root>
-                <span class="overflow-hidden text-ellipsis whitespace-nowrap" title={entry.path}>
+                <span
+                  class="overflow-hidden text-ellipsis whitespace-nowrap"
+                  title={entry.path}
+                >
                   {entry.file_name}
                 </span>
-                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]">
+                <span
+                  class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
+                >
                   {new Date(entry.modified).toLocaleDateString()}
                 </span>
-                <span class="whitespace-nowrap text-right">{formatBytes(entry.size_bytes)}</span>
+                <span class="whitespace-nowrap text-right"
+                  >{formatBytes(entry.size_bytes)}</span
+                >
               </div>
             {/snippet}
           </VirtualList>
@@ -181,7 +228,9 @@
   onCancel={() => (confirmOpen = false)}
 >
   {#snippet description()}
-    Nothing is permanently deleted — these files move into a <code>.sortty-trash</code> folder
-    next to them (not the Windows Recycle Bin), and this can be undone from History afterward.
+    Nothing is permanently deleted — these files move into a <code
+      >.sortty-trash</code
+    > folder next to them (not the Windows Recycle Bin), and this can be undone from
+    History afterward.
   {/snippet}
 </ConfirmModal>

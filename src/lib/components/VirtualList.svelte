@@ -44,8 +44,14 @@
   });
 </script>
 
-<div bind:this={scrollEl} class="overflow-y-auto" style="max-height: {maxHeight}px;">
-  <div style="height: {$virtualizer.getTotalSize()}px; position: relative; width: 100%;">
+<div
+  bind:this={scrollEl}
+  class="overflow-y-auto"
+  style="max-height: {maxHeight}px;"
+>
+  <div
+    style="height: {$virtualizer.getTotalSize()}px; position: relative; width: 100%;"
+  >
     {#each $virtualizer.getVirtualItems() as vi (vi.key)}
       <div
         style="position: absolute; top: 0; left: 0; width: 100%; height: {vi.size}px; transform: translateY({vi.start}px);"

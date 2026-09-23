@@ -3,7 +3,11 @@ import { writable } from "svelte/store";
 export type ViewMode = "list" | "grid";
 export type ThumbScale = "sm" | "md" | "lg";
 
-function read<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+function read<T extends string>(
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
   try {
     const v = localStorage.getItem(key);
     if (v && (allowed as readonly string[]).includes(v)) return v as T;
@@ -21,8 +25,12 @@ function persist(key: string, value: string) {
   }
 }
 
-export const previewViewMode = writable<ViewMode>(read("sortty-preview-view", ["list", "grid"] as const, "list"));
-export const previewScale = writable<ThumbScale>(read("sortty-preview-scale", ["sm", "md", "lg"] as const, "md"));
+export const previewViewMode = writable<ViewMode>(
+  read("sortty-preview-view", ["list", "grid"] as const, "list"),
+);
+export const previewScale = writable<ThumbScale>(
+  read("sortty-preview-scale", ["sm", "md", "lg"] as const, "md"),
+);
 
 previewViewMode.subscribe((v) => persist("sortty-preview-view", v));
 previewScale.subscribe((v) => persist("sortty-preview-scale", v));

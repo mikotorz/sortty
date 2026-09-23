@@ -9,6 +9,7 @@ Accepted
 Sortty needed to be a desktop GUI app that does real file-system work (recursive scanning, content hashing for duplicate detection, moving thousands of files) while staying approachable to build and maintain. The user wanted a GUI (not a CLI/script), was open to Rust specifically, and the app needed to feel native on Windows.
 
 Options considered:
+
 - **Electron** (Node + Chromium) — mature ecosystem, but ships a full Chromium runtime per app and keeps all file I/O in Node, which is a worse fit for CPU-bound work like parallel content hashing.
 - **egui/eframe** (pure Rust, immediate-mode GUI) — single language, but the UI toolkit is utilitarian and would make the checkbox-heavy dry-run preview table more work to build well.
 - **Tauri** (Rust backend + OS-native webview, HTML/CSS/JS or a light frontend framework for UI) — small binaries, native webview (no bundled Chromium), Rust handles all file I/O, and the UI can use ordinary web tooling.
