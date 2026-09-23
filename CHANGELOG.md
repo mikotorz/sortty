@@ -13,6 +13,7 @@ A full review of the codebase before the move to Opus turned up bugs that could 
 - **Fixed: Sort by Date could put files in the wrong month.** Dates were grouped by UTC rather than your own clock. In a time zone ahead of UTC, a file saved just after midnight on the 1st landed in the previous month's folder, or on 1 January the previous year's. Files are now grouped by local time.
 - **Fixed: the mode defaults in Settings had no effect.** "Stale after (days)", "Minimum size" and the other per-mode defaults were saved but never used; Sort & Clean always started from 180 days and 1 KB. Choosing a mode now starts from your saved defaults, and saving Settings updates the mode that's already selected.
 - **Fixed: Empty Trash in Browse missed files deleted from subfolders.** Deleting a file in a subfolder put it in a separate trash folder inside that subfolder, where Empty Trash never looked. Browse now uses one trash folder at the top of the browsed folder (the same layout Find Duplicates uses), and it respects a trash folder renamed in Settings. Browse delete also refuses files outside the chosen folder. See the amendment to [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
+- **Fixed: one unreadable file stopped Find Duplicates entirely.** A single locked or vanished file made the whole scan fail. It's now skipped, the same way the regular scan skips it. Duplicate results also come out in the same order every time.
 
 ## 2026-09-24 — The whole page scrolls again
 

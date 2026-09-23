@@ -67,10 +67,22 @@ pub fn build_plan(
     let mut operations = Vec::new();
 
     for group in candidate_groups {
+        // One unreadable file (locked, permission-denied, a cloud-sync
+        // placeholder) is skipped, not allowed to fail the whole plan —
+        // the same policy the scanner uses.
         let hashed: Vec<(String, &FileEntry)> = group
             .par_iter()
-            .map(|e| hash_file(&e.path).map(|h| (h, *e)))
-            .collect::<Result<_, _>>()?;
+            .filter_map(|e| match hash_file(&e.path) {
+                Ok(h) => Some((h, *e)),
+                Err(err) => {
+                    log::warn!(
+                        "sortty: skipping {} in duplicate check: {err}",
+                        e.path.display()
+                    );
+                    None
+                }
+            })
+            .collect();
 
         let mut by_hash: HashMap<String, Vec<&FileEntry>> = HashMap::new();
         for (hash, entry) in hashed {
@@ -96,6 +108,9 @@ pub fn build_plan(
         }
     }
 
+    // HashMap iteration order is random; sort so the same folder always
+    // produces the same plan order.
+    operations.sort_by(|a, b| a.source.cmp(&b.source));
     Ok(Plan::new(root.to_path_buf(), PlanMode::Dedup, operations))
 }
 
@@ -156,5 +171,44 @@ mod tests {
 
         assert_eq!(plan.operations.len(), 1);
         assert_eq!(plan.operations[0].source, root.join("a.txt"));
+    }
+
+    fn entry_for(path: std::path::PathBuf, size: u64) -> FileEntry {
+        FileEntry {
+            file_name: path.file_name().unwrap().to_string_lossy().to_string(),
+            path,
+            extension: Some("txt".into()),
+            size_bytes: size,
+            modified: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+            created: None,
+        }
+    }
+
+    /// Regression: one file that couldn't be read (here, one that vanished
+    /// after the scan) used to fail the whole duplicate check.
+    #[test]
+    fn an_unreadable_candidate_is_skipped_not_fatal() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("a.txt"), b"same content").unwrap();
+        fs::write(root.join("b.txt"), b"same content").unwrap();
+        let entries = vec![
+            entry_for(root.join("a.txt"), 12),
+            entry_for(root.join("b.txt"), 12),
+            entry_for(root.join("gone.txt"), 12),
+        ];
+
+        let plan = build_plan(
+            root,
+            &entries,
+            &DedupOptions {
+                min_size_bytes: 1,
+                keep_strategy: KeepStrategy::ShortestPath,
+                trash_folder_name: ".sortty-trash".to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(plan.operations.len(), 1);
     }
 }
