@@ -34,6 +34,22 @@ impl Default for ScanOptions {
     }
 }
 
+impl ScanOptions {
+    /// Adds `names` to `exclude` (skipping ones already there). The command
+    /// layer calls this with every staging folder name on every scan, so a
+    /// caller-supplied `exclude` — including an empty one from the frontend —
+    /// can never make a scan descend into `.sortty-trash`/`.sortty-archive`
+    /// and sort staged files back out of them. See ADR 0017.
+    pub fn excluding(mut self, names: impl IntoIterator<Item = String>) -> Self {
+        for name in names {
+            if !self.exclude.contains(&name) {
+                self.exclude.push(name);
+            }
+        }
+        self
+    }
+}
+
 const JUNK_NAMES: &[&str] = &["thumbs.db", "desktop.ini", ".ds_store", "ehthumbs.db"];
 
 const INCOMPLETE_DOWNLOAD_SUFFIXES: &[&str] = &[

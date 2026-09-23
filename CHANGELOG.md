@@ -2,6 +2,12 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Review fixes: trash safety, undo, dates, settings
+
+A full review of the codebase before the move to Opus turned up bugs that could undo the app's core promise (nothing is ever lost, nothing leaves the folder you picked). This pass fixes them.
+
+- **Fixed: files in the trash could be sorted back out of it.** With "Include files in subfolders too" on, a scan also looked inside `.sortty-trash` and `.sortty-archive`, so Sort by Type moved duplicates you had set aside back into `Images/`, `Documents/` and so on. The trash and archive folders (including renamed ones, and the old default names) are now always skipped, whatever the scan options say. See [ADR 0017](docs/adr/0017-staging-folders-and-no-clobber-moves.md).
+
 ## 2026-09-24 — The whole page scrolls again
 
 After the earlier resize fixes, scan and browse results were stuck in a small scroll box at the bottom of the page, under the scan options, so you only saw a thin strip of the list. Now the whole page scrolls again, all the way to the last file, as it did before. The list still fills a wider or taller window, and very large folders stay fast because only the rows on screen are drawn. See the latest amendment in [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).

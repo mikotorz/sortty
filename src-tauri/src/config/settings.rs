@@ -41,6 +41,28 @@ pub struct TrashSettings {
     pub archive_folder_name: String,
 }
 
+impl TrashSettings {
+    /// Every staging folder name a scan must never descend into: the
+    /// configured trash/archive names plus the built-in defaults, so files
+    /// already staged under a folder's old name stay protected after the
+    /// user renames it in Settings.
+    pub fn staging_folder_names(&self) -> Vec<String> {
+        let mut names = vec![
+            self.staging_folder_name.clone(),
+            self.archive_folder_name.clone(),
+        ];
+        for default in [DEFAULT_TRASH_FOLDER, DEFAULT_ARCHIVE_FOLDER] {
+            if !names.iter().any(|n| n == default) {
+                names.push(default.to_string());
+            }
+        }
+        names
+    }
+}
+
+pub const DEFAULT_TRASH_FOLDER: &str = ".sortty-trash";
+pub const DEFAULT_ARCHIVE_FOLDER: &str = ".sortty-archive";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub general: GeneralSettings,
@@ -71,8 +93,8 @@ impl Default for AppSettings {
                 min_size_bytes: 1024,
             },
             trash: TrashSettings {
-                staging_folder_name: ".sortty-trash".to_string(),
-                archive_folder_name: ".sortty-archive".to_string(),
+                staging_folder_name: DEFAULT_TRASH_FOLDER.to_string(),
+                archive_folder_name: DEFAULT_ARCHIVE_FOLDER.to_string(),
             },
         }
     }

@@ -9,7 +9,6 @@ class ScanSession {
   request = $state<PlanRequest>({ mode: "sort_by_type" });
   scanOptions = $state<ScanOptions>({
     include_subfolders: false,
-    exclude: [],
     exclude_folders: [],
   });
   plan = $state<Plan | null>(null);

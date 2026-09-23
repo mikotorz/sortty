@@ -17,7 +17,6 @@ export interface FileEntry {
 
 export interface ScanOptions {
   include_subfolders: boolean;
-  exclude: string[];
   exclude_folders: string[];
 }
 

@@ -33,12 +33,11 @@ describe("commands.ts", () => {
     mockedInvoke.mockResolvedValueOnce({ entries: [] });
     await scanFolder("C:\\Downloads", {
       include_subfolders: true,
-      exclude: [],
       exclude_folders: [],
     });
     expect(mockedInvoke).toHaveBeenCalledWith("scan_folder", {
       root: "C:\\Downloads",
-      options: { include_subfolders: true, exclude: [], exclude_folders: [] },
+      options: { include_subfolders: true, exclude_folders: [] },
     });
   });
 

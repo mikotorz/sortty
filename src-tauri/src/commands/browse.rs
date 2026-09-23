@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 use crate::apply::{executor, store};
+use crate::config::settings::{self, TrashSettings};
 use crate::domain::entry::FileEntry;
 use crate::domain::plan::{Operation, OperationKind, Plan, PlanMode};
 use crate::domain::run::RunRecord;
@@ -13,18 +14,27 @@ use crate::error::AppError;
 /// separate listing routine — a destination folder is scanned the same way
 /// any other folder is, just always recursively and always skipping the
 /// tool's own staging folders.
-pub fn browse_folder_at(folder: &Path) -> Result<Vec<FileEntry>, AppError> {
+pub fn browse_folder_at(folder: &Path, trash: &TrashSettings) -> Result<Vec<FileEntry>, AppError> {
     let options = ScanOptions {
         include_subfolders: true,
-        exclude: vec![".sortty-trash".to_string(), ".sortty-archive".to_string()],
+        exclude: Vec::new(),
         exclude_folders: Vec::new(),
-    };
+    }
+    .excluding(trash.staging_folder_names());
     scanner::scan(folder, &options)
 }
 
+fn load_trash_settings(app: &AppHandle) -> Result<TrashSettings, AppError> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(settings::load_settings(&config_dir)?.trash)
+}
+
 #[tauri::command]
-pub async fn browse_folder(path: String) -> Result<Vec<FileEntry>, AppError> {
-    browse_folder_at(Path::new(&path))
+pub async fn browse_folder(app: AppHandle, path: String) -> Result<Vec<FileEntry>, AppError> {
+    browse_folder_at(Path::new(&path), &load_trash_settings(&app)?)
 }
 
 /// "Deletes" files the user picked while browsing a destination folder — in
@@ -79,6 +89,7 @@ pub async fn delete_files(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::settings::AppSettings;
     use std::fs;
 
     #[test]
@@ -88,7 +99,7 @@ mod tests {
         fs::create_dir(dir.path().join("nested")).unwrap();
         fs::write(dir.path().join("nested/b.txt"), b"b").unwrap();
 
-        let entries = browse_folder_at(dir.path()).unwrap();
+        let entries = browse_folder_at(dir.path(), &AppSettings::default().trash).unwrap();
 
         assert_eq!(entries.len(), 2);
     }
@@ -102,7 +113,7 @@ mod tests {
         fs::create_dir(dir.path().join(".sortty-archive")).unwrap();
         fs::write(dir.path().join(".sortty-archive/old.txt"), b"old").unwrap();
 
-        let entries = browse_folder_at(dir.path()).unwrap();
+        let entries = browse_folder_at(dir.path(), &AppSettings::default().trash).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].file_name, "a.txt");
