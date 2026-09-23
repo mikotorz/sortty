@@ -18,7 +18,9 @@ fn resolve_collision(destination: &Path) -> PathBuf {
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_default();
-    let ext = destination.extension().map(|e| e.to_string_lossy().to_string());
+    let ext = destination
+        .extension()
+        .map(|e| e.to_string_lossy().to_string());
 
     let mut n = 1;
     loop {
@@ -116,9 +118,13 @@ mod tests {
             "test",
             1,
         );
-        let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op_a.clone(), op_b]);
+        let plan = Plan::new(
+            root.to_path_buf(),
+            PlanMode::SortByType,
+            vec![op_a.clone(), op_b],
+        );
 
-        let record = apply(&plan, &[op_a.id.clone()]);
+        let record = apply(&plan, std::slice::from_ref(&op_a.id));
 
         assert_eq!(record.applied_operations.len(), 1);
         assert!(root.join("Docs/a.txt").exists());
@@ -142,10 +148,13 @@ mod tests {
             1,
         );
         let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op.clone()]);
-        let record = apply(&plan, &[op.id.clone()]);
+        let record = apply(&plan, std::slice::from_ref(&op.id));
 
         assert_eq!(record.applied_operations.len(), 1);
-        assert_eq!(fs::read_to_string(root.join("Docs/a.txt")).unwrap(), "existing");
+        assert_eq!(
+            fs::read_to_string(root.join("Docs/a.txt")).unwrap(),
+            "existing"
+        );
         assert_eq!(
             fs::read_to_string(root.join("Docs/a (1).txt")).unwrap(),
             "incoming"

@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::domain::category::CategoryRules;
+use crate::domain::folder_name::validate_folder_name;
 use crate::domain::plan::PlanMode;
 use crate::engine::cleanup::StaleAction;
 use crate::engine::dedup::KeepStrategy;
 use crate::engine::sort_by_date::{DateGranularity, DateSource};
 use crate::error::AppError;
+use crate::fsutil::write_atomic;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralSettings {
@@ -96,11 +98,14 @@ pub fn load_settings(config_dir: &Path) -> Result<AppSettings, AppError> {
 }
 
 pub fn save_settings(config_dir: &Path, settings: &AppSettings) -> Result<(), AppError> {
+    validate_folder_name(&settings.trash.staging_folder_name)?;
+    validate_folder_name(&settings.trash.archive_folder_name)?;
+
     std::fs::create_dir_all(config_dir).map_err(|e| AppError::io(config_dir.to_path_buf(), e))?;
     let path = settings_path(config_dir);
     let text = toml::to_string_pretty(settings)
         .map_err(|e| AppError::Config(format!("failed to serialize settings: {e}")))?;
-    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))
+    write_atomic(&path, &text)
 }
 
 pub fn load_category_rules(config_dir: &Path) -> Result<CategoryRules, AppError> {
@@ -115,11 +120,16 @@ pub fn load_category_rules(config_dir: &Path) -> Result<CategoryRules, AppError>
 }
 
 pub fn save_category_rules(config_dir: &Path, rules: &CategoryRules) -> Result<(), AppError> {
+    validate_folder_name(&rules.other_folder_name)?;
+    for name in rules.categories.keys() {
+        validate_folder_name(name)?;
+    }
+
     std::fs::create_dir_all(config_dir).map_err(|e| AppError::io(config_dir.to_path_buf(), e))?;
     let path = categories_path(config_dir);
     let text = toml::to_string_pretty(rules)
         .map_err(|e| AppError::Config(format!("failed to serialize categories: {e}")))?;
-    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))
+    write_atomic(&path, &text)
 }
 
 #[cfg(test)]
@@ -141,5 +151,23 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let rules = load_category_rules(dir.path()).unwrap();
         assert!(rules.categories.contains_key("Images"));
+    }
+
+    #[test]
+    fn rejects_path_traversal_in_trash_folder_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut settings = AppSettings::default();
+        settings.trash.staging_folder_name = "../../Desktop".to_string();
+        assert!(save_settings(dir.path(), &settings).is_err());
+    }
+
+    #[test]
+    fn rejects_path_traversal_in_category_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut rules = CategoryRules::default_rules();
+        rules
+            .categories
+            .insert("../escape".to_string(), rules.categories["Images"].clone());
+        assert!(save_category_rules(dir.path(), &rules).is_err());
     }
 }

@@ -17,8 +17,13 @@
 
   async function load() {
     loading = true;
-    runs = await listRuns(50);
-    loading = false;
+    try {
+      runs = await listRuns(50);
+    } catch (e) {
+      pushToast("error", `Couldn't load history: ${e}`);
+    } finally {
+      loading = false;
+    }
   }
 
   const modeLabels: Record<string, string> = {
@@ -57,6 +62,8 @@
     try {
       const record = await getRun(runId);
       expandedFailures = { ...expandedFailures, [runId]: record.failed_operations };
+    } catch (e) {
+      pushToast("error", `Couldn't load failure details: ${e}`);
     } finally {
       loadingFailuresFor = null;
     }

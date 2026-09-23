@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::domain::entry::FileEntry;
-use crate::domain::plan::{Operation, OperationKind, Plan, PlanMode};
+use crate::domain::plan::{staged_destination, Operation, OperationKind, Plan, PlanMode};
 use crate::engine::sort_by_date::DateSource;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -22,11 +22,6 @@ pub struct CleanupOptions {
     pub date_source: DateSource,
     pub action: StaleAction,
     pub archive_folder_name: String,
-}
-
-fn archive_destination(root: &Path, source: &Path, archive_folder_name: &str) -> PathBuf {
-    let relative = source.strip_prefix(root).unwrap_or(source);
-    root.join(archive_folder_name).join(relative)
 }
 
 pub fn build_plan(
@@ -52,7 +47,7 @@ pub fn build_plan(
         let mut op = Operation::new(
             OperationKind::Archive,
             entry.path.clone(),
-            archive_destination(root, &entry.path, &options.archive_folder_name),
+            staged_destination(root, &entry.path, &options.archive_folder_name),
             format!("Stale, last touched {age_days} days ago"),
             entry.size_bytes,
         );
@@ -69,6 +64,7 @@ pub fn build_plan(
 mod tests {
     use super::*;
     use chrono::TimeZone;
+    use std::path::PathBuf;
 
     fn entry_at(days_old: i64, now: DateTime<Utc>) -> FileEntry {
         FileEntry {

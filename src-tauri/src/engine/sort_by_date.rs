@@ -92,7 +92,9 @@ mod tests {
 
     #[test]
     fn buckets_by_year_only() {
-        let date = chrono::Utc.with_ymd_and_hms(2025, 12, 31, 23, 59, 59).unwrap();
+        let date = chrono::Utc
+            .with_ymd_and_hms(2025, 12, 31, 23, 59, 59)
+            .unwrap();
         let entries = vec![entry("a.txt", date)];
         let options = SortByDateOptions {
             date_source: DateSource::Modified,

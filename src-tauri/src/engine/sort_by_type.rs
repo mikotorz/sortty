@@ -53,7 +53,10 @@ mod tests {
     #[test]
     fn routes_known_and_unknown_extensions() {
         let rules = CategoryRules::default_rules();
-        let entries = vec![entry("photo.png", Some("png")), entry("weird.xyz", Some("xyz"))];
+        let entries = vec![
+            entry("photo.png", Some("png")),
+            entry("weird.xyz", Some("xyz")),
+        ];
         let plan = build_plan(Path::new("/root"), &entries, &rules);
 
         assert_eq!(plan.operations.len(), 2);

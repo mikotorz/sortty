@@ -38,7 +38,10 @@ pub fn undo(record: &RunRecord) -> Result<UndoResult, AppError> {
         }
     }
 
-    Ok(UndoResult { restored, conflicts })
+    Ok(UndoResult {
+        restored,
+        conflicts,
+    })
 }
 
 #[cfg(test)]

@@ -4,6 +4,7 @@ pub mod config;
 pub mod domain;
 pub mod engine;
 pub mod error;
+pub mod fsutil;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::domain::run::{RunRecord, RunSummary};
 use crate::error::AppError;
+use crate::fsutil::write_atomic;
 
 fn runs_dir(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join("runs")
@@ -28,7 +29,7 @@ fn write_index(app_data_dir: &Path, index: &[RunSummary]) -> Result<(), AppError
     let path = index_path(app_data_dir);
     let text = serde_json::to_string_pretty(index)
         .map_err(|e| AppError::Config(format!("failed to serialize run index: {e}")))?;
-    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))
+    write_atomic(&path, &text)
 }
 
 pub fn save_run(app_data_dir: &Path, record: &RunRecord) -> Result<(), AppError> {
@@ -38,7 +39,7 @@ pub fn save_run(app_data_dir: &Path, record: &RunRecord) -> Result<(), AppError>
     let path = run_path(app_data_dir, &record.run_id);
     let text = serde_json::to_string_pretty(record)
         .map_err(|e| AppError::Config(format!("failed to serialize run record: {e}")))?;
-    std::fs::write(&path, text).map_err(|e| AppError::io(path, e))?;
+    write_atomic(&path, &text)?;
 
     let mut index = read_index(app_data_dir)?;
     index.retain(|s| s.run_id != record.run_id);
@@ -50,7 +51,7 @@ pub fn save_run(app_data_dir: &Path, record: &RunRecord) -> Result<(), AppError>
 
 pub fn list_runs(app_data_dir: &Path, limit: Option<usize>) -> Result<Vec<RunSummary>, AppError> {
     let mut index = read_index(app_data_dir)?;
-    index.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    index.sort_by_key(|s| std::cmp::Reverse(s.started_at));
     if let Some(limit) = limit {
         index.truncate(limit);
     }

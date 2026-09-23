@@ -25,7 +25,8 @@ fn mime_for_extension(ext: &str) -> Option<&'static str> {
 pub async fn read_file_preview(path: String) -> Result<String, AppError> {
     let p = Path::new(&path);
     let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let mime = mime_for_extension(ext).ok_or_else(|| AppError::Other("unsupported preview type".to_string()))?;
+    let mime = mime_for_extension(ext)
+        .ok_or_else(|| AppError::Other("unsupported preview type".to_string()))?;
 
     let metadata = std::fs::metadata(p).map_err(|e| AppError::io(p.to_path_buf(), e))?;
     if metadata.len() > MAX_PREVIEW_BYTES {

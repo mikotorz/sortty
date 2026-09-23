@@ -28,10 +28,7 @@ impl Default for ScanOptions {
     fn default() -> Self {
         ScanOptions {
             include_subfolders: false,
-            exclude: vec![
-                ".sortty-trash".to_string(),
-                ".sortty-archive".to_string(),
-            ],
+            exclude: vec![".sortty-trash".to_string(), ".sortty-archive".to_string()],
             exclude_folders: Vec::new(),
         }
     }
@@ -39,8 +36,13 @@ impl Default for ScanOptions {
 
 const JUNK_NAMES: &[&str] = &["thumbs.db", "desktop.ini", ".ds_store", "ehthumbs.db"];
 
-const INCOMPLETE_DOWNLOAD_SUFFIXES: &[&str] =
-    &[".crdownload", ".part", ".partial", ".download", ".opdownload"];
+const INCOMPLETE_DOWNLOAD_SUFFIXES: &[&str] = &[
+    ".crdownload",
+    ".part",
+    ".partial",
+    ".download",
+    ".opdownload",
+];
 
 /// Files that are OS/browser bookkeeping rather than something a user meant to
 /// keep — never sorted, always left alone.
@@ -124,14 +126,27 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
 
     let mut entries = Vec::new();
     for item in walker {
-        let item = item.map_err(|e| AppError::Other(e.to_string()))?;
+        // A single unreadable entry (permission-denied, locked, a cloud-sync
+        // placeholder, a directory that vanished mid-walk) shouldn't fail the
+        // whole scan — skip it and keep going.
+        let item = match item {
+            Ok(item) => item,
+            Err(e) => {
+                log::warn!("sortty: skipping an entry during scan: {e}");
+                continue;
+            }
+        };
         if !item.file_type().is_file() {
             continue;
         }
         let path = item.path().to_path_buf();
-        let metadata = item
-            .metadata()
-            .map_err(|e| AppError::io(path.clone(), e.into()))?;
+        let metadata = match item.metadata() {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                log::warn!("sortty: skipping {}: {e}", path.display());
+                continue;
+            }
+        };
 
         let file_name = path
             .file_name()
@@ -146,12 +161,9 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
             .modified()
             .map(DateTime::<Utc>::from)
             .unwrap_or_else(|_| Utc::now());
-        let created: Option<DateTime<Utc>> =
-            metadata.created().ok().map(DateTime::<Utc>::from);
+        let created: Option<DateTime<Utc>> = metadata.created().ok().map(DateTime::<Utc>::from);
 
-        let extension = path
-            .extension()
-            .map(|e| e.to_string_lossy().to_lowercase());
+        let extension = path.extension().map(|e| e.to_string_lossy().to_lowercase());
 
         entries.push(FileEntry {
             path,
@@ -194,7 +206,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("loose.txt"), b"hello").unwrap();
         fs::create_dir(dir.path().join("MATLAB installer")).unwrap();
-        fs::write(dir.path().join("MATLAB installer").join("setup.exe"), b"installer").unwrap();
+        fs::write(
+            dir.path().join("MATLAB installer").join("setup.exe"),
+            b"installer",
+        )
+        .unwrap();
 
         let entries = scan(dir.path(), &ScanOptions::default()).unwrap();
         assert_eq!(entries.len(), 1);

@@ -1,10 +1,11 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::io::BufReader;
+use std::path::Path;
 
 use crate::domain::entry::FileEntry;
-use crate::domain::plan::{Operation, OperationKind, Plan, PlanMode};
+use crate::domain::plan::{staged_destination, Operation, OperationKind, Plan, PlanMode};
 use crate::error::AppError;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -23,26 +24,26 @@ pub struct DedupOptions {
     pub trash_folder_name: String,
 }
 
-fn trash_destination(root: &Path, source: &Path, trash_folder_name: &str) -> PathBuf {
-    let relative = source.strip_prefix(root).unwrap_or(source);
-    root.join(trash_folder_name).join(relative)
-}
-
+/// Hashes a file in fixed-size chunks rather than reading it whole into
+/// memory, so a large duplicate candidate (video, VM image, ISO) doesn't
+/// cause memory pressure.
 fn hash_file(path: &Path) -> Result<String, AppError> {
-    let bytes = std::fs::read(path).map_err(|e| AppError::io(path.to_path_buf(), e))?;
-    Ok(blake3::hash(&bytes).to_hex().to_string())
+    let file = std::fs::File::open(path).map_err(|e| AppError::io(path.to_path_buf(), e))?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = blake3::Hasher::new();
+    std::io::copy(&mut reader, &mut hasher).map_err(|e| AppError::io(path.to_path_buf(), e))?;
+    Ok(hasher.finalize().to_hex().to_string())
 }
 
-fn pick_keeper<'a>(group: &[&'a FileEntry], strategy: KeepStrategy) -> &'a FileEntry {
+/// Returns `None` only if `group` is empty, which never happens for a real
+/// duplicate group (callers only pass groups already filtered to `len() > 1`).
+fn pick_keeper<'a>(group: &[&'a FileEntry], strategy: KeepStrategy) -> Option<&'a FileEntry> {
     match strategy {
-        KeepStrategy::OldestModified => group
-            .iter()
-            .min_by_key(|e| e.modified)
-            .expect("group is non-empty"),
+        KeepStrategy::OldestModified => group.iter().min_by_key(|e| e.modified).copied(),
         KeepStrategy::ShortestPath => group
             .iter()
             .min_by_key(|e| e.path.as_os_str().len())
-            .expect("group is non-empty"),
+            .copied(),
     }
 }
 
@@ -77,7 +78,9 @@ pub fn build_plan(
         }
 
         for dup_group in by_hash.into_values().filter(|g| g.len() > 1) {
-            let keeper = pick_keeper(&dup_group, options.keep_strategy);
+            let Some(keeper) = pick_keeper(&dup_group, options.keep_strategy) else {
+                continue;
+            };
             for entry in &dup_group {
                 if entry.path == keeper.path {
                     continue;
@@ -85,7 +88,7 @@ pub fn build_plan(
                 operations.push(Operation::new(
                     OperationKind::MoveToTrash,
                     entry.path.clone(),
-                    trash_destination(root, &entry.path, &options.trash_folder_name),
+                    staged_destination(root, &entry.path, &options.trash_folder_name),
                     format!("Duplicate of {}", keeper.path.display()),
                     entry.size_bytes,
                 ));

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -75,10 +75,21 @@ pub struct Plan {
     pub summary: PlanSummary,
 }
 
+/// The destination for a file being staged into a tool-owned folder inside
+/// `root` (`.sortty-trash` for a duplicate, `.sortty-archive` for a stale
+/// file), preserving its path relative to `root` underneath that folder.
+/// Shared by dedup and cleanup so both stage files the same way.
+pub fn staged_destination(root: &Path, source: &Path, staging_folder_name: &str) -> PathBuf {
+    let relative = source.strip_prefix(root).unwrap_or(source);
+    root.join(staging_folder_name).join(relative)
+}
+
 impl Plan {
     pub fn new(root: PathBuf, mode: PlanMode, operations: Vec<Operation>) -> Self {
-        let mut summary = PlanSummary::default();
-        summary.total_files = operations.len();
+        let mut summary = PlanSummary {
+            total_files: operations.len(),
+            ..Default::default()
+        };
         for op in &operations {
             summary.total_bytes += op.size_bytes;
             let key = op

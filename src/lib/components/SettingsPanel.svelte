@@ -35,13 +35,18 @@
 
   async function load() {
     loading = true;
-    const [r, s] = await Promise.all([getCategoryRules(), getSettings()]);
-    rules = r;
-    appSettings = s;
-    extensionsText = Object.fromEntries(
-      Object.entries(r.categories).map(([name, def]) => [name, def.extensions.join(", ")]),
-    );
-    loading = false;
+    try {
+      const [r, s] = await Promise.all([getCategoryRules(), getSettings()]);
+      rules = r;
+      appSettings = s;
+      extensionsText = Object.fromEntries(
+        Object.entries(r.categories).map(([name, def]) => [name, def.extensions.join(", ")]),
+      );
+    } catch (e) {
+      pushToast("error", `Couldn't load settings: ${e}`);
+    } finally {
+      loading = false;
+    }
   }
 
   function addCategory() {
