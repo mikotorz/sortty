@@ -90,6 +90,7 @@ export interface RunRecord {
   failed_operations: FailedOperation[];
   undone: boolean;
   cancelled: boolean;
+  restored_ids: string[];
 }
 
 export interface RunSummary {
@@ -101,6 +102,7 @@ export interface RunSummary {
   failed_count: number;
   undone: boolean;
   cancelled: boolean;
+  partially_undone: boolean;
 }
 
 export interface UndoResult {

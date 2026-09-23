@@ -28,9 +28,7 @@ pub fn undo_run_at(data_dir: &Path, run_id: &str) -> Result<UndoResult, AppError
             "run {run_id} was already undone"
         )));
     }
-    let result = undo::undo(&record)?;
-    store::mark_undone(data_dir, run_id)?;
-    Ok(result)
+    undo_and_save(data_dir, record)
 }
 
 #[tauri::command]
@@ -47,9 +45,12 @@ pub fn undo_last_run_at(data_dir: &Path) -> Result<UndoResult, AppError> {
         .into_iter()
         .find(|r| !r.undone)
         .ok_or_else(|| AppError::RunNotFound("no undoable runs".to_string()))?;
-    let record = store::get_run(data_dir, &last.run_id)?;
-    let result = undo::undo(&record)?;
-    store::mark_undone(data_dir, &last.run_id)?;
+    undo_and_save(data_dir, store::get_run(data_dir, &last.run_id)?)
+}
+
+fn undo_and_save(data_dir: &Path, mut record: RunRecord) -> Result<UndoResult, AppError> {
+    let result = undo::undo_and_record(&mut record)?;
+    store::save_run(data_dir, &record)?;
     Ok(result)
 }
 
@@ -82,6 +83,7 @@ mod tests {
             failed_operations: vec![],
             undone: false,
             cancelled: false,
+            restored_ids: vec![],
         }
     }
 

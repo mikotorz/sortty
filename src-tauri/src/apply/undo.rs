@@ -1,40 +1,79 @@
+use std::path::Path;
+
 use crate::domain::run::{RunRecord, UndoResult};
 use crate::error::AppError;
 use crate::fsutil::move_no_clobber;
 
-/// Reverses a run's applied operations (`to -> from`), most recent first.
-/// A destination that's occupied again (something new landed there since the
-/// run) is skipped and reported as a conflict rather than aborting the undo.
+/// Reverses a run's applied operations (`to -> from`), most recent first,
+/// skipping any already listed in `record.restored_ids` by an earlier,
+/// partial undo. A destination that's occupied again (something new landed
+/// there since the run) is skipped and reported as a conflict rather than
+/// aborting the undo.
+///
+/// After each restore, folders the run left empty (`Images/`, `2026/01/`,
+/// `.sortty-trash/...`) are removed, up to but never including `record.root`.
 pub fn undo(record: &RunRecord) -> Result<UndoResult, AppError> {
-    let mut restored = 0;
-    let mut conflicts = Vec::new();
+    let mut result = UndoResult::default();
 
     for applied in record.applied_operations.iter().rev() {
+        if record.restored_ids.contains(&applied.id) {
+            continue;
+        }
         if !applied.to.exists() {
             // Already moved/removed by something else; nothing to restore.
-            conflicts.push(applied.clone());
+            result.conflicts.push(applied.clone());
             continue;
         }
         if applied.from.exists() {
             // Something already occupies the original path.
-            conflicts.push(applied.clone());
+            result.conflicts.push(applied.clone());
             continue;
         }
 
         match move_no_clobber(&applied.to, &applied.from) {
-            Ok(()) => restored += 1,
+            Ok(()) => {
+                result.restored += 1;
+                result.restored_ids.push(applied.id.clone());
+                if let Some(parent) = applied.to.parent() {
+                    remove_empty_folders(parent, &record.root);
+                }
+            }
             Err(e) => {
                 log::warn!("sortty: couldn't restore {}: {e}", applied.from.display());
-                conflicts.push(applied.clone());
+                result.conflicts.push(applied.clone());
             }
         }
     }
-    Ok(UndoResult {
-        restored,
-        conflicts,
-    })
+    Ok(result)
 }
 
+/// Removes `dir` and then each of its parents while they're empty, stopping
+/// at (and never removing) `root`. `remove_dir` refuses a non-empty folder,
+/// so this can never delete a file (ADR 0002).
+fn remove_empty_folders(dir: &Path, root: &Path) {
+    let mut current = Some(dir);
+    while let Some(dir) = current {
+        if dir == root || !dir.starts_with(root) || std::fs::remove_dir(dir).is_err() {
+            break;
+        }
+        current = dir.parent();
+    }
+}
+
+/// Undoes `record` and persists the outcome: newly restored ids are added
+/// to `restored_ids`, and `undone` is set only once every applied
+/// operation has been restored, so a partial undo can be retried.
+pub fn undo_and_record(record: &mut RunRecord) -> Result<UndoResult, AppError> {
+    let result = undo(record)?;
+    record
+        .restored_ids
+        .extend(result.restored_ids.iter().cloned());
+    record.undone = record
+        .applied_operations
+        .iter()
+        .all(|op| record.restored_ids.contains(&op.id));
+    Ok(result)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,6 +93,7 @@ mod tests {
             failed_operations: vec![],
             undone: false,
             cancelled: false,
+            restored_ids: vec![],
         }
     }
 
@@ -144,5 +184,83 @@ mod tests {
         let result = undo(&record).unwrap();
         assert_eq!(result.restored, 0);
         assert_eq!(result.conflicts.len(), 1);
+    }
+
+    fn moved(id: &str, from: std::path::PathBuf, to: std::path::PathBuf) -> AppliedOperation {
+        AppliedOperation {
+            id: id.into(),
+            kind: OperationKind::Move,
+            from,
+            to,
+            size_bytes: 1,
+        }
+    }
+
+    #[test]
+    fn removes_folders_the_run_left_empty_but_never_the_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir_all(root.join("2026/01")).unwrap();
+        fs::write(root.join("2026/01/a.txt"), b"a").unwrap();
+
+        let record = make_record(
+            root,
+            vec![moved("1", root.join("a.txt"), root.join("2026/01/a.txt"))],
+        );
+        undo(&record).unwrap();
+
+        assert!(root.join("a.txt").exists());
+        assert!(!root.join("2026").exists());
+        assert!(root.exists());
+    }
+
+    #[test]
+    fn keeps_folders_that_still_hold_other_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir_all(root.join("Docs")).unwrap();
+        fs::write(root.join("Docs/a.txt"), b"a").unwrap();
+        fs::write(root.join("Docs/keep.txt"), b"keep").unwrap();
+
+        let record = make_record(
+            root,
+            vec![moved("1", root.join("a.txt"), root.join("Docs/a.txt"))],
+        );
+        undo(&record).unwrap();
+
+        assert!(root.join("Docs/keep.txt").exists());
+    }
+
+    /// Regression: a run whose undo hit a conflict used to be marked undone
+    /// anyway, so the files that couldn't be restored could never be retried.
+    #[test]
+    fn a_partial_undo_can_be_retried_once_the_conflict_is_cleared() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir_all(root.join("Docs")).unwrap();
+        fs::write(root.join("Docs/a.txt"), b"a").unwrap();
+        fs::write(root.join("Docs/b.txt"), b"b").unwrap();
+        fs::write(root.join("b.txt"), b"squatter").unwrap();
+
+        let mut record = make_record(
+            root,
+            vec![
+                moved("a", root.join("a.txt"), root.join("Docs/a.txt")),
+                moved("b", root.join("b.txt"), root.join("Docs/b.txt")),
+            ],
+        );
+
+        let first = undo_and_record(&mut record).unwrap();
+        assert_eq!(first.restored, 1);
+        assert_eq!(first.conflicts.len(), 1);
+        assert!(!record.undone);
+        assert_eq!(record.restored_ids, vec!["a".to_string()]);
+
+        fs::remove_file(root.join("b.txt")).unwrap();
+        let second = undo_and_record(&mut record).unwrap();
+        assert_eq!(second.restored, 1);
+        assert!(second.conflicts.is_empty());
+        assert!(record.undone);
+        assert_eq!(fs::read(root.join("b.txt")).unwrap(), b"b");
     }
 }

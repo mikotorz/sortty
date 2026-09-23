@@ -90,6 +90,7 @@ mod tests {
             failed_operations: vec![],
             undone: false,
             cancelled: false,
+            restored_ids: vec![],
         }
     }
 

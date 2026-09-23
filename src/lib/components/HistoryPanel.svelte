@@ -41,7 +41,7 @@
       pushToast(
         "success",
         result.conflicts.length > 0
-          ? `Restored ${result.restored} file(s); ${result.conflicts.length} couldn't be restored (path is occupied).`
+          ? `Restored ${result.restored} file(s); ${result.conflicts.length} couldn't be restored — the original spot is taken or the file has moved. Clear it and choose Retry undo.`
           : `Restored ${result.restored} file(s).`,
       );
       await load();
@@ -143,23 +143,36 @@
               <span class="text-xs italic text-[var(--color-text-muted)]"
                 >Undone</span
               >
-            {:else if run.cancelled}
+            {:else if run.applied_count === 0}
               <span class="text-xs italic text-[var(--color-text-muted)]"
-                >Cancelled</span
+                >{run.cancelled ? "Cancelled" : "Nothing moved"}</span
               >
             {:else}
-              <button
-                type="button"
-                class="btn-ghost px-2.5 py-1 text-xs"
-                onclick={() => handleUndo(run.run_id)}
-                disabled={undoingId === run.run_id}
-              >
-                {#if undoingId === run.run_id}<LoaderCircle
-                    size={12}
-                    class="animate-spin"
-                  />{/if}
-                {undoingId === run.run_id ? "Undoing…" : "Undo"}
-              </button>
+              <span class="inline-flex items-center gap-2">
+                {#if run.partially_undone || run.cancelled}
+                  <span class="text-xs italic text-[var(--color-text-muted)]"
+                    >{run.partially_undone
+                      ? "Partially undone"
+                      : "Cancelled"}</span
+                  >
+                {/if}
+                <button
+                  type="button"
+                  class="btn-ghost px-2.5 py-1 text-xs"
+                  onclick={() => handleUndo(run.run_id)}
+                  disabled={undoingId === run.run_id}
+                >
+                  {#if undoingId === run.run_id}<LoaderCircle
+                      size={12}
+                      class="animate-spin"
+                    />{/if}
+                  {undoingId === run.run_id
+                    ? "Undoing…"
+                    : run.partially_undone
+                      ? "Retry undo"
+                      : "Undo"}
+                </button>
+              </span>
             {/if}
           </td>
         </tr>

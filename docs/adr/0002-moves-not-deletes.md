@@ -27,3 +27,10 @@ Because every operation is a move, **undo is just replaying the same operations 
 - Apply and undo share one code path and one mental model (`apply/executor.rs` / `apply/undo.rs`), which made both far simpler to implement and test correctly than a delete-then-restore design would have been.
 - Disk space isn't actually reclaimed by a dedup/cleanup run until the user (in a future release) empties `.sortty-trash`/`.sortty-archive` — the apply-result UI is careful to say "moved to trash (not yet permanently deleted)" rather than "freed," to avoid over-promising.
 - `.sortty-trash` and `.sortty-archive` live inside the scanned root itself, so they're always excluded from future scans (`ScanOptions::exclude` defaults to both names) to avoid the tool re-processing its own staging folders.
+
+## Amendment (2026-09-24): retryable undo and empty-folder cleanup
+
+- **Undo removes the folders a run left empty.** After putting a file back, undo calls `fs::remove_dir` on its old parent folder, then on each parent above it, stopping at the root. `remove_dir` refuses a folder that still has anything in it, so this can never delete a file. It does mean an already-empty folder that happened to be a destination (say, an empty `Images/` created by hand) is removed too. That doesn't break this ADR's invariant, because no data is lost.
+- **A partial undo can be retried.** `RunRecord::restored_ids` records which operations an undo has already put back. A run is only marked `undone` once all of them are restored. Until then History shows it as "Partially undone" with a "Retry undo" button, and a retry only attempts the rest. Previously any undo marked the run as undone, so files that hit a conflict could never be retried.
+- Runs cancelled partway through can now be undone from History too. Before, they only showed "Cancelled".
+- The last bullet above is superseded by [ADR 0017](0017-staging-folders-and-no-clobber-moves.md). The scanner's own default was being overridden by the frontend, so the command layer now always adds the staging folders to the exclude list.

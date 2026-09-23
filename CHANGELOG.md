@@ -8,6 +8,8 @@ A full review of the codebase before the move to Opus turned up bugs that could 
 
 - **Fixed: files in the trash could be sorted back out of it.** With "Include files in subfolders too" on, a scan also looked inside `.sortty-trash` and `.sortty-archive`, so Sort by Type moved duplicates you had set aside back into `Images/`, `Documents/` and so on. The trash and archive folders (including renamed ones, and the old default names) are now always skipped, whatever the scan options say. See [ADR 0017](docs/adr/0017-staging-folders-and-no-clobber-moves.md).
 - **Fixed: a file open in another program could end up in two places.** Moving it failed, but sortty then copied it to the destination anyway and left that copy behind, where Undo couldn't see it. Moves now either happen completely or leave everything as it was, and they can never overwrite an existing file. Undo uses the same safe move. See [ADR 0017](docs/adr/0017-staging-folders-and-no-clobber-moves.md).
+- **Fixed: an undo that couldn't restore every file couldn't be retried.** The run was marked undone anyway and the Undo button disappeared. It now shows as **Partially undone** with a **Retry undo** button, and a retry only tries the files that are still out of place. Runs you cancelled partway through can now be undone from History too.
+- **Undo now cleans up empty folders.** Undoing a sort used to leave empty Images/, 2026/01/ or .sortty-trash folders behind. Folders the run left empty are now removed; a folder with anything still in it is never touched. See the amendment to [ADR 0002](docs/adr/0002-moves-not-deletes.md).
 
 ## 2026-09-24 — The whole page scrolls again
 

@@ -99,6 +99,7 @@ pub fn apply_with_progress(
         failed_operations: failed,
         undone: false,
         cancelled,
+        restored_ids: Vec::new(),
     }
 }
 

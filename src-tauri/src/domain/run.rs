@@ -35,6 +35,12 @@ pub struct RunRecord {
     /// still deserialize.
     #[serde(default)]
     pub cancelled: bool,
+    /// Ids of the `applied_operations` an undo has already put back. An undo
+    /// that hits conflicts restores what it can and records it here, so a
+    /// retry only attempts the rest; `undone` becomes true only once every
+    /// operation is restored.
+    #[serde(default)]
+    pub restored_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,6 +54,9 @@ pub struct RunSummary {
     pub undone: bool,
     #[serde(default)]
     pub cancelled: bool,
+    /// Some, but not all, of the run's operations have been undone.
+    #[serde(default)]
+    pub partially_undone: bool,
 }
 
 impl From<&RunRecord> for RunSummary {
@@ -61,6 +70,7 @@ impl From<&RunRecord> for RunSummary {
             failed_count: r.failed_operations.len(),
             undone: r.undone,
             cancelled: r.cancelled,
+            partially_undone: !r.undone && !r.restored_ids.is_empty(),
         }
     }
 }
@@ -69,4 +79,8 @@ impl From<&RunRecord> for RunSummary {
 pub struct UndoResult {
     pub restored: usize,
     pub conflicts: Vec<AppliedOperation>,
+    /// Ids restored by this undo attempt, for the caller to persist into
+    /// `RunRecord::restored_ids`. Not sent to the frontend.
+    #[serde(skip)]
+    pub restored_ids: Vec<String>,
 }
