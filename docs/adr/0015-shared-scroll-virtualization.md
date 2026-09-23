@@ -87,3 +87,28 @@ list-oriented pages (Sort & Clean, Browse, History) now fill the available
 width, like a file manager. Grid view adds tile columns to match (4 at the
 default window size, 7 at 1600px wide). Settings keeps its 768px cap: it's
 a form, and very wide text fields are harder to read.
+
+## Amendment (2026-09-24): the shared scroller is the page itself
+
+A scroll box inside the results card was the wrong place for the shared
+scroller. That card sits at the bottom of the page, under a tall scan-options
+card, so the list only got the leftover strip of the window (about 180–240px
+at the default size, even with the 20rem floor above). The page could no
+longer scroll to the end the way it did before these changes.
+
+The shared scroller is now the app's own page scroller: `<main
+class="app-content">` in `+layout.svelte`, which was already `overflow-y:
+auto`. The layout passes it to the pages through a small Svelte context
+(`src/lib/state/scrollRoot.svelte.ts`), together with a `layoutVersion` that
+a `ResizeObserver` on the page content bumps. `PreviewTable`/`BrowsePanel`
+pass both straight to `VirtualList`/`VirtualGrid`. The scroll-box wrappers,
+per-panel observers and flex-height chain from the earlier amendments are
+gone.
+
+The result: groups flow normally in the page, the whole page scrolls to the
+last row, a larger window shows more rows and tiles, and only the visible
+rows are drawn. Observing the page content instead of the list also catches
+changes above the list that move it, such as the options card growing when
+"Include subfolders" is ticked; the old list-level observer missed those. The
+original per-group 420px boxes are not coming back: nested scroll areas are
+what made the list look stuck in the first place.

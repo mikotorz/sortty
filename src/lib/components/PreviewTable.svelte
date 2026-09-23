@@ -3,6 +3,7 @@
   import type { Operation, Plan } from "../api/types";
   import { formatBytes } from "../format";
   import { cn } from "../cn";
+  import { getScrollRoot } from "../state/scrollRoot.svelte";
   import {
     previewViewMode,
     previewScale,
@@ -43,24 +44,7 @@
   let query = $state("");
   let openGroups = $state<Record<string, boolean>>({});
 
-  let scrollEl = $state<HTMLDivElement | null>(null);
-  let listContentEl = $state<HTMLDivElement | null>(null);
-  let layoutVersion = $state(0);
-
-  // The shared scroller's own box is flex-bounded (fixed viewport height) and
-  // doesn't resize when its internal content grows — observe the auto-height
-  // wrapper around the groups instead, which does resize on every group
-  // collapse/expand and every VirtualGrid column reflow. Each VirtualList/
-  // VirtualGrid instance uses this to remeasure its offset within scrollEl.
-  $effect(() => {
-    const el = listContentEl;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      layoutVersion++;
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  });
+  const scrollRoot = getScrollRoot();
 
   let filteredOps = $derived.by(() => {
     const q = query.trim().toLowerCase();
@@ -194,132 +178,125 @@
   </p>
 {/if}
 
-<div bind:this={scrollEl} class="flex-1 min-h-0 overflow-y-auto">
-  <div bind:this={listContentEl}>
-    {#each groups as [dir, ops] (dir)}
-      <Collapsible.Root
-        class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
-        open={isGroupOpen(dir)}
-        onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
+{#each groups as [dir, ops] (dir)}
+  <Collapsible.Root
+    class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
+    open={isGroupOpen(dir)}
+    onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
+  >
+    <div
+      class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
+    >
+      <Checkbox.Root
+        checked={isGroupChecked(ops, idOf, selected)}
+        indeterminate={isGroupIndeterminate(ops, idOf, selected)}
+        onCheckedChange={(v) => toggleGroup(ops, v === true)}
+        class="chk"
       >
-        <div
-          class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
+        {#snippet children({ checked, indeterminate })}
+          {#if indeterminate}<Minus size={11} />{:else if checked}<Check
+              size={11}
+            />{/if}
+        {/snippet}
+      </Checkbox.Root>
+      <Collapsible.Trigger
+        class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm"
+      >
+        <ChevronRight
+          size={14}
+          class="chevron shrink-0 text-[var(--color-text-muted)]"
+        />
+        <code class="text-[0.8rem]">{dir}</code>
+        <span class="text-xs text-[var(--color-text-muted)]"
+          >({ops.length})</span
         >
-          <Checkbox.Root
-            checked={isGroupChecked(ops, idOf, selected)}
-            indeterminate={isGroupIndeterminate(ops, idOf, selected)}
-            onCheckedChange={(v) => toggleGroup(ops, v === true)}
-            class="chk"
+      </Collapsible.Trigger>
+    </div>
+    <Collapsible.Content>
+      {#if $previewViewMode === "list"}
+        <div class="text-sm" role="table">
+          <VirtualList
+            items={ops}
+            estimateSize={37}
+            scrollElement={scrollRoot.el}
+            layoutVersion={scrollRoot.layoutVersion}
           >
-            {#snippet children({ checked, indeterminate })}
-              {#if indeterminate}<Minus size={11} />{:else if checked}<Check
-                  size={11}
-                />{/if}
+            {#snippet row(op: Operation)}
+              <div
+                role="row"
+                class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
+                style="grid-template-columns: 2rem minmax(0, 55%) minmax(0, 1fr) auto;"
+              >
+                <Checkbox.Root
+                  checked={selected[op.id]}
+                  onCheckedChange={(v) =>
+                    (selected = { ...selected, [op.id]: v === true })}
+                  class="chk"
+                >
+                  {#snippet children({ checked })}
+                    {#if checked}<Check size={11} />{/if}
+                  {/snippet}
+                </Checkbox.Root>
+                <span
+                  class="overflow-hidden text-ellipsis whitespace-nowrap"
+                  title={op.source}
+                >
+                  {op.source}
+                </span>
+                <span
+                  class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
+                >
+                  {op.reason}
+                </span>
+                <span class="whitespace-nowrap text-right"
+                  >{formatBytes(op.size_bytes)}</span
+                >
+              </div>
             {/snippet}
-          </Checkbox.Root>
-          <Collapsible.Trigger
-            class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm"
-          >
-            <ChevronRight
-              size={14}
-              class="chevron shrink-0 text-[var(--color-text-muted)]"
-            />
-            <code class="text-[0.8rem]">{dir}</code>
-            <span class="text-xs text-[var(--color-text-muted)]"
-              >({ops.length})</span
-            >
-          </Collapsible.Trigger>
+          </VirtualList>
         </div>
-        <Collapsible.Content>
-          {#if $previewViewMode === "list"}
-            <div class="text-sm" role="table">
-              <VirtualList
-                items={ops}
-                estimateSize={37}
-                scrollElement={scrollEl}
-                {layoutVersion}
+      {:else}
+        <div class="p-3 border-t border-[var(--color-border-subtle)]">
+          <VirtualGrid
+            items={ops}
+            itemKey={idOf}
+            minTileWidth={SCALE_PX[$previewScale] + 56}
+            tileHeight={SCALE_PX[$previewScale] + 62}
+            gap={12}
+            scrollElement={scrollRoot.el}
+            layoutVersion={scrollRoot.layoutVersion}
+          >
+            {#snippet tile(op: Operation)}
+              <button
+                type="button"
+                class={cn(
+                  "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
+                  selected[op.id]
+                    ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
+                    : "border-transparent hover:bg-[var(--color-surface-hover)]",
+                )}
+                onclick={() =>
+                  (selected = { ...selected, [op.id]: !selected[op.id] })}
               >
-                {#snippet row(op: Operation)}
-                  <div
-                    role="row"
-                    class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
-                    style="grid-template-columns: 2rem minmax(0, 55%) minmax(0, 1fr) auto;"
-                  >
-                    <Checkbox.Root
-                      checked={selected[op.id]}
-                      onCheckedChange={(v) =>
-                        (selected = { ...selected, [op.id]: v === true })}
-                      class="chk"
-                    >
-                      {#snippet children({ checked })}
-                        {#if checked}<Check size={11} />{/if}
-                      {/snippet}
-                    </Checkbox.Root>
-                    <span
-                      class="overflow-hidden text-ellipsis whitespace-nowrap"
-                      title={op.source}
-                    >
-                      {op.source}
-                    </span>
-                    <span
-                      class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
-                    >
-                      {op.reason}
-                    </span>
-                    <span class="whitespace-nowrap text-right"
-                      >{formatBytes(op.size_bytes)}</span
-                    >
-                  </div>
-                {/snippet}
-              </VirtualList>
-            </div>
-          {:else}
-            <div class="p-3 border-t border-[var(--color-border-subtle)]">
-              <VirtualGrid
-                items={ops}
-                itemKey={idOf}
-                minTileWidth={SCALE_PX[$previewScale] + 56}
-                tileHeight={SCALE_PX[$previewScale] + 62}
-                gap={12}
-                scrollElement={scrollEl}
-                {layoutVersion}
-              >
-                {#snippet tile(op: Operation)}
-                  <button
-                    type="button"
-                    class={cn(
-                      "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
-                      selected[op.id]
-                        ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
-                        : "border-transparent hover:bg-[var(--color-surface-hover)]",
-                    )}
-                    onclick={() =>
-                      (selected = { ...selected, [op.id]: !selected[op.id] })}
-                  >
-                    <div
-                      class="chk absolute left-1.5 top-1.5"
-                      data-state={selected[op.id] ? "checked" : "unchecked"}
-                      aria-hidden="true"
-                    >
-                      {#if selected[op.id]}<Check size={11} />{/if}
-                    </div>
-                    <FileThumb
-                      path={op.source}
-                      size={SCALE_PX[$previewScale]}
-                    />
-                    <span class="w-full truncate text-xs" title={op.source}
-                      >{fileNameOf(op.source)}</span
-                    >
-                    <span class="text-[0.7rem] text-[var(--color-text-muted)]"
-                      >{formatBytes(op.size_bytes)}</span
-                    >
-                  </button>
-                {/snippet}
-              </VirtualGrid>
-            </div>
-          {/if}
-        </Collapsible.Content>
-      </Collapsible.Root>
-    {/each}
-  </div>
-</div>
+                <div
+                  class="chk absolute left-1.5 top-1.5"
+                  data-state={selected[op.id] ? "checked" : "unchecked"}
+                  aria-hidden="true"
+                >
+                  {#if selected[op.id]}<Check size={11} />{/if}
+                </div>
+                <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
+                <span class="w-full truncate text-xs" title={op.source}
+                  >{fileNameOf(op.source)}</span
+                >
+                <span class="text-[0.7rem] text-[var(--color-text-muted)]"
+                  >{formatBytes(op.size_bytes)}</span
+                >
+              </button>
+            {/snippet}
+          </VirtualGrid>
+        </div>
+      {/if}
+    </Collapsible.Content>
+  </Collapsible.Root>
+{/each}

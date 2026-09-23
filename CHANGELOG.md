@@ -2,6 +2,10 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — The whole page scrolls again
+
+After the earlier resize fixes, scan and browse results were stuck in a small scroll box at the bottom of the page, under the scan options, so you only saw a thin strip of the list. Now the whole page scrolls again, all the way to the last file, as it did before. The list still fills a wider or taller window, and very large folders stay fast because only the rows on screen are drawn. See the latest amendment in [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).
+
 ## 2026-09-24 — Pages now use the full window width
 
 Enlarging the window still left the main content stuck at the same width, with empty space on the right. Sort & Clean, Browse and History had a fixed 768px maximum width, which the earlier resize fixes never touched. Those pages now stretch to fill the window, and grid view shows more thumbnails per row when there's room. Settings keeps its narrower layout because it's a form. See the amendment in [ADR 0015](docs/adr/0015-shared-scroll-virtualization.md).

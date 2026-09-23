@@ -33,7 +33,7 @@
     tileHeight: number;
     itemKey: (item: T) => string | number;
     gap?: number;
-    scrollElement: HTMLDivElement | null;
+    scrollElement: HTMLElement | null;
     layoutVersion?: number;
     overscan?: number;
     tile: Snippet<[T]>;
@@ -49,7 +49,7 @@
   let rowCount = $derived(Math.ceil(items.length / columns));
 
   const virtualizer = untrack(() =>
-    createVirtualizer<HTMLDivElement, HTMLDivElement>({
+    createVirtualizer<HTMLElement, HTMLDivElement>({
       count: rowCount,
       getScrollElement: () => scrollElement,
       estimateSize: () => tileHeight,

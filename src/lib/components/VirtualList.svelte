@@ -27,7 +27,7 @@
   }: {
     items: T[];
     estimateSize: number;
-    scrollElement: HTMLDivElement | null;
+    scrollElement: HTMLElement | null;
     layoutVersion?: number;
     overscan?: number;
     row: Snippet<[T]>;
@@ -37,7 +37,7 @@
   let scrollMargin = $state(0);
 
   const virtualizer = untrack(() =>
-    createVirtualizer<HTMLDivElement, HTMLDivElement>({
+    createVirtualizer<HTMLElement, HTMLDivElement>({
       count: items.length,
       getScrollElement: () => scrollElement,
       estimateSize: () => estimateSize,

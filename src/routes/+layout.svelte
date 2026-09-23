@@ -14,8 +14,26 @@
     defaultRequestForMode,
   } from "$lib/state/planRequestDefaults";
   import { scheduleGeneralSave } from "$lib/state/generalSettingsSync";
+  import { createScrollRoot } from "$lib/state/scrollRoot.svelte";
 
   let { children } = $props();
+
+  // Lists virtualize against the page's own scroller, so the whole page
+  // scrolls to the end rather than a box inside it (see ADR 0015). The
+  // observer watches the page content, not the fixed-size scroller, so it
+  // fires on anything that can shift a list's offset.
+  const scrollRoot = createScrollRoot();
+  let pageContentEl = $state<HTMLDivElement | null>(null);
+
+  $effect(() => {
+    const el = pageContentEl;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      scrollRoot.layoutVersion++;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   // Remember the last folder and mode across restarts. Hydration is guarded
   // against clobbering a folder/mode the user already picked before settings
@@ -59,8 +77,10 @@
   <TitleBar />
   <div class="app-body">
     <Sidebar />
-    <main class="app-content">
-      {@render children()}
+    <main class="app-content" bind:this={scrollRoot.el}>
+      <div bind:this={pageContentEl}>
+        {@render children()}
+      </div>
     </main>
   </div>
 </div>

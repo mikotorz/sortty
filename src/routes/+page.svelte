@@ -137,7 +137,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 h-full min-h-0">
+<div class="flex flex-col gap-4">
   <div>
     <h1 class="text-lg font-semibold">Sort &amp; Clean</h1>
     <p class="text-sm text-[var(--color-text-muted)]">
@@ -246,7 +246,7 @@
   </div>
 
   {#if scanSession.plan}
-    <div class="card flex flex-col min-h-80 flex-1">
+    <div class="card">
       <div class="flex items-center justify-between text-sm mb-3">
         <span class="text-[var(--color-text-muted)]"
           >{selectedCount} of {scanSession.plan.operations.length} selected ({formatBytes(
