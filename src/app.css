@@ -37,8 +37,13 @@
   --sidebar-width: 216px;
 }
 
+/*
+ * Theme resolution: default is light. `data-theme="dark"` on <html> forces dark
+ * regardless of OS preference; with no explicit override (`system`, the default),
+ * OS dark preference applies unless the user explicitly forced light.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-bg: #18181b;
     --color-surface: #212124;
     --color-surface-hover: #29292d;
@@ -60,6 +65,29 @@
     --color-warning-bg: #271b05;
     --color-warning-fg: #fbbf24;
   }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #18181b;
+  --color-surface: #212124;
+  --color-surface-hover: #29292d;
+  --color-border: #333338;
+  --color-border-subtle: #2a2a2e;
+  --color-text: #f4f4f5;
+  --color-text-muted: #a1a1aa;
+
+  --color-accent: #6d8bf0;
+  --color-accent-hover: #86a0f3;
+  --color-accent-fg: #0b1220;
+
+  --color-danger: #f87171;
+  --color-danger-fg: #450a0a;
+
+  --color-success-bg: #062617;
+  --color-success-fg: #4ade80;
+
+  --color-warning-bg: #271b05;
+  --color-warning-fg: #fbbf24;
 }
 
 body {

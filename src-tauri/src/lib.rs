@@ -35,7 +35,10 @@ pub fn run() {
             commands::config::save_category_rules,
             commands::config::get_settings,
             commands::config::save_settings,
+            commands::config::reset_settings,
+            commands::config::reset_category_rules,
             commands::config::open_config_folder,
+            commands::preview::read_file_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

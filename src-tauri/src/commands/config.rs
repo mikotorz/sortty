@@ -32,6 +32,20 @@ pub async fn save_settings(app: AppHandle, settings_value: AppSettings) -> Resul
 }
 
 #[tauri::command]
+pub async fn reset_settings(app: AppHandle) -> Result<AppSettings, AppError> {
+    let defaults = AppSettings::default();
+    settings::save_settings(&config_dir(&app)?, &defaults)?;
+    Ok(defaults)
+}
+
+#[tauri::command]
+pub async fn reset_category_rules(app: AppHandle) -> Result<CategoryRules, AppError> {
+    let defaults = CategoryRules::default_rules();
+    settings::save_category_rules(&config_dir(&app)?, &defaults)?;
+    Ok(defaults)
+}
+
+#[tauri::command]
 pub async fn open_config_folder(app: AppHandle) -> Result<(), AppError> {
     let dir = config_dir(&app)?;
     std::fs::create_dir_all(&dir).map_err(|e| AppError::io(dir.clone(), e))?;

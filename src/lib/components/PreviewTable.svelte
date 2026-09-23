@@ -2,11 +2,16 @@
   import { Collapsible, Checkbox } from "bits-ui";
   import type { Operation, Plan } from "../api/types";
   import { formatBytes } from "../format";
+  import { cn } from "../cn";
+  import { previewViewMode, previewScale, SCALE_PX } from "../state/previewView";
+  import FileThumb from "./FileThumb.svelte";
   import Search from "@lucide/svelte/icons/search";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Check from "@lucide/svelte/icons/check";
   import Minus from "@lucide/svelte/icons/minus";
   import FolderCheck from "@lucide/svelte/icons/folder-check";
+  import List from "@lucide/svelte/icons/list";
+  import LayoutGrid from "@lucide/svelte/icons/layout-grid";
 
   let { plan, selected = $bindable() }: { plan: Plan; selected: Record<string, boolean> } = $props();
 
@@ -16,6 +21,11 @@
   function dirOf(path: string): string {
     const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     return idx === -1 ? path : path.slice(0, idx);
+  }
+
+  function fileNameOf(path: string): string {
+    const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+    return idx === -1 ? path : path.slice(idx + 1);
   }
 
   let filteredOps = $derived.by(() => {
@@ -79,14 +89,56 @@
     Select all ({plan.summary.total_files} files, {formatBytes(plan.summary.total_bytes)})
   </label>
 
-  <div class="relative">
-    <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-    <input
-      type="text"
-      placeholder="Filter by path…"
-      bind:value={query}
-      class="w-56 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
-    />
+  <div class="flex items-center gap-3">
+    {#if $previewViewMode === "grid"}
+      <div class="inline-flex rounded-md border border-[var(--color-border)] p-0.5 text-xs">
+        {#each [["sm", "S"], ["md", "M"], ["lg", "L"]] as [value, label] ([value])}
+          <button
+            type="button"
+            class={cn(
+              "rounded px-2 py-1",
+              $previewScale === value ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
+            )}
+            onclick={() => previewScale.set(value as "sm" | "md" | "lg")}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <div class="inline-flex rounded-md border border-[var(--color-border)] p-0.5">
+      <button
+        type="button"
+        aria-label="List view"
+        class={cn(
+          "flex items-center rounded p-1.5",
+          $previewViewMode === "list" ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
+        )}
+        onclick={() => previewViewMode.set("list")}
+      >
+        <List size={14} />
+      </button>
+      <button
+        type="button"
+        aria-label="Grid view"
+        class={cn(
+          "flex items-center rounded p-1.5",
+          $previewViewMode === "grid" ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
+        )}
+        onclick={() => previewViewMode.set("grid")}
+      >
+        <LayoutGrid size={14} />
+      </button>
+    </div>
+    <div class="relative">
+      <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+      <input
+        type="text"
+        placeholder="Filter by path…"
+        bind:value={query}
+        class="w-56 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
+      />
+    </div>
   </div>
 </div>
 
@@ -123,34 +175,59 @@
       </Collapsible.Trigger>
     </div>
     <Collapsible.Content>
-      <table class="w-full border-collapse text-sm">
-        <tbody>
+      {#if $previewViewMode === "list"}
+        <table class="w-full border-collapse text-sm">
+          <tbody>
+            {#each ops as op (op.id)}
+              <tr class="hover:bg-[var(--color-surface-hover)]">
+                <td class="w-8 px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]">
+                  <Checkbox.Root
+                    checked={selected[op.id]}
+                    onCheckedChange={(v) => (selected = { ...selected, [op.id]: v === true })}
+                    class="chk"
+                  >
+                    {#snippet children({ checked })}
+                      {#if checked}<Check size={11} />{/if}
+                    {/snippet}
+                  </Checkbox.Root>
+                </td>
+                <td class="max-w-0 w-[55%] overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]" title={op.source}>
+                  {op.source}
+                </td>
+                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+                  {op.reason}
+                </td>
+                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-right whitespace-nowrap">
+                  {formatBytes(op.size_bytes)}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <div
+          class="grid gap-3 p-3 border-t border-[var(--color-border-subtle)]"
+          style="grid-template-columns: repeat(auto-fill, minmax({SCALE_PX[$previewScale] + 56}px, 1fr));"
+        >
           {#each ops as op (op.id)}
-            <tr class="hover:bg-[var(--color-surface-hover)]">
-              <td class="w-8 px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]">
-                <Checkbox.Root
-                  checked={selected[op.id]}
-                  onCheckedChange={(v) => (selected = { ...selected, [op.id]: v === true })}
-                  class="chk"
-                >
-                  {#snippet children({ checked })}
-                    {#if checked}<Check size={11} />{/if}
-                  {/snippet}
-                </Checkbox.Root>
-              </td>
-              <td class="max-w-0 w-[55%] overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]" title={op.source}>
-                {op.source}
-              </td>
-              <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
-                {op.reason}
-              </td>
-              <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-right whitespace-nowrap">
-                {formatBytes(op.size_bytes)}
-              </td>
-            </tr>
+            <button
+              type="button"
+              class={cn(
+                "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
+                selected[op.id] ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]" : "border-transparent hover:bg-[var(--color-surface-hover)]",
+              )}
+              onclick={() => (selected = { ...selected, [op.id]: !selected[op.id] })}
+            >
+              <div class="chk absolute left-1.5 top-1.5" data-state={selected[op.id] ? "checked" : "unchecked"} aria-hidden="true">
+                {#if selected[op.id]}<Check size={11} />{/if}
+              </div>
+              <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
+              <span class="w-full truncate text-xs" title={op.source}>{fileNameOf(op.source)}</span>
+              <span class="text-[0.7rem] text-[var(--color-text-muted)]">{formatBytes(op.size_bytes)}</span>
+            </button>
           {/each}
-        </tbody>
-      </table>
+        </div>
+      {/if}
     </Collapsible.Content>
   </Collapsible.Root>
 {/each}

@@ -1,16 +1,26 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { AlertDialog } from "bits-ui";
+  import { fade, fly } from "svelte/transition";
   import {
     getCategoryRules,
     getSettings,
     openConfigFolder,
+    resetCategoryRules,
+    resetSettings,
     saveCategoryRules,
     saveSettings,
   } from "../api/commands";
   import type { AppSettings, CategoryRules } from "../api/types";
   import { pushToast } from "../state/toast";
+  import { theme, type Theme } from "../state/theme";
+  import { cn } from "../cn";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import X from "@lucide/svelte/icons/x";
+  import Sun from "@lucide/svelte/icons/sun";
+  import Moon from "@lucide/svelte/icons/moon";
+  import Monitor from "@lucide/svelte/icons/monitor";
 
   let rules = $state<CategoryRules | null>(null);
   let appSettings = $state<AppSettings | null>(null);
@@ -18,6 +28,8 @@
   let newCategoryName = $state("");
   let loading = $state(true);
   let saving = $state(false);
+  let resetting = $state(false);
+  let confirmResetOpen = $state(false);
 
   onMount(load);
 
@@ -66,6 +78,30 @@
       saving = false;
     }
   }
+
+  async function restoreDefaults() {
+    confirmResetOpen = false;
+    resetting = true;
+    try {
+      const [r, s] = await Promise.all([resetCategoryRules(), resetSettings()]);
+      rules = r;
+      appSettings = s;
+      extensionsText = Object.fromEntries(
+        Object.entries(r.categories).map(([name, def]) => [name, def.extensions.join(", ")]),
+      );
+      pushToast("success", "Settings restored to defaults.");
+    } catch (e) {
+      pushToast("error", `Restore failed: ${e}`);
+    } finally {
+      resetting = false;
+    }
+  }
+
+  const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
+    { value: "system", label: "System", icon: Monitor },
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+  ];
 </script>
 
 {#if loading || !rules || !appSettings}
@@ -73,6 +109,25 @@
     <LoaderCircle size={15} class="animate-spin" /> Loading settings…
   </p>
 {:else}
+  <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">Appearance</h3>
+    <div class="inline-flex rounded-md border border-[var(--color-border)] p-0.5">
+      {#each themeOptions as opt (opt.value)}
+        <button
+          type="button"
+          class={cn(
+            "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm",
+            $theme === opt.value ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
+          )}
+          onclick={() => theme.set(opt.value)}
+        >
+          <opt.icon size={14} />
+          {opt.label}
+        </button>
+      {/each}
+    </div>
+  </section>
+
   <section class="mb-6">
     <h3 class="mb-0.5 text-sm font-semibold">File type categories</h3>
     <p class="mt-0 mb-3 text-xs text-[var(--color-text-muted)]">Destination folder names and the extensions that route to them.</p>
@@ -133,5 +188,41 @@
       {saving ? "Saving…" : "Save settings"}
     </button>
     <button type="button" class="btn-ghost" onclick={openConfigFolder}>Open config folder</button>
+    <button type="button" class="btn-ghost" onclick={() => (confirmResetOpen = true)} disabled={resetting}>
+      {#if resetting}<LoaderCircle size={14} class="animate-spin" />{:else}<RotateCcw size={14} />{/if}
+      Restore defaults
+    </button>
   </div>
+
+  <AlertDialog.Root bind:open={confirmResetOpen}>
+    <AlertDialog.Portal>
+      <AlertDialog.Overlay class="fixed inset-0 z-40 bg-black/40" forceMount>
+        {#snippet child({ props, open })}
+          {#if open}
+            <div {...props} transition:fade={{ duration: 120 }}></div>
+          {/if}
+        {/snippet}
+      </AlertDialog.Overlay>
+      <AlertDialog.Content
+        class="fixed left-1/2 top-1/2 z-50 w-[90%] max-w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-card)] bg-[var(--color-surface)] p-6 shadow-2xl outline-none"
+        forceMount
+      >
+        {#snippet child({ props, open })}
+          {#if open}
+            <div {...props} transition:fly={{ y: 8, duration: 140 }}>
+              <AlertDialog.Title class="text-base font-semibold m-0">Restore default settings?</AlertDialog.Title>
+              <AlertDialog.Description class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                This replaces your file type categories, cleanup thresholds, and trash/archive folder names with
+                the built-in defaults. This can't be undone.
+              </AlertDialog.Description>
+              <div class="mt-4 flex justify-end gap-2">
+                <AlertDialog.Cancel class="btn-ghost">Cancel</AlertDialog.Cancel>
+                <AlertDialog.Action class="btn-primary" onclick={restoreDefaults}>Restore defaults</AlertDialog.Action>
+              </div>
+            </div>
+          {/if}
+        {/snippet}
+      </AlertDialog.Content>
+    </AlertDialog.Portal>
+  </AlertDialog.Root>
 {/if}

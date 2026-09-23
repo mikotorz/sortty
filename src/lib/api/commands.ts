@@ -59,6 +59,18 @@ export function saveSettings(settingsValue: AppSettings): Promise<void> {
   return invoke("save_settings", { settingsValue });
 }
 
+export function resetSettings(): Promise<AppSettings> {
+  return invoke("reset_settings");
+}
+
+export function resetCategoryRules(): Promise<CategoryRules> {
+  return invoke("reset_category_rules");
+}
+
 export function openConfigFolder(): Promise<void> {
   return invoke("open_config_folder");
+}
+
+export function readFilePreview(path: string): Promise<string> {
+  return invoke("read_file_preview", { path });
 }

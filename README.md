@@ -13,12 +13,14 @@ Point it at a folder and pick a mode:
 
 Every mode always shows a **dry-run preview** first — nothing moves until you review and confirm. "Deleting" a duplicate or stale file never really deletes it: it's moved into a `.sortty-trash` / `.sortty-archive` folder inside the scanned folder, and the whole run can be undone from the History tab.
 
+The preview can be filtered by path, and viewed either as a list or as a thumbnail grid (with a small/medium/large size control) — image files show a real thumbnail, everything else shows a file-type icon.
+
 By default, only files sitting loose at the top level of the chosen folder are touched — existing subfolders (an installer's files, a driver package, a project folder) are left completely alone unless you explicitly opt in to scanning subfolders too.
 
 ## Tech stack
 
 - **Backend**: Rust (Tauri v2) — all file scanning, categorization, and file I/O happens here.
-- **Frontend**: SvelteKit + TypeScript, built as a static SPA served in Tauri's webview, styled with Tailwind CSS and [Bits UI](https://bits-ui.com/) (accessible unstyled component primitives). The window uses a custom frameless title bar and follows the OS light/dark theme automatically.
+- **Frontend**: SvelteKit + TypeScript, built as a static SPA served in Tauri's webview, styled with Tailwind CSS and [Bits UI](https://bits-ui.com/) (accessible unstyled component primitives). The window uses a custom frameless title bar. Theme follows the OS light/dark setting by default, with a manual Light/Dark/System switch in Settings.
 
 See [CONTEXT.md](CONTEXT.md) for the domain model and [docs/adr/](docs/adr/) for key design decisions.
 

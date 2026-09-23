@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import "$lib/state/theme";
   import TitleBar from "$lib/components/TitleBar.svelte";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import ToastStack from "$lib/components/ToastStack.svelte";

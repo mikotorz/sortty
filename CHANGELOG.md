@@ -2,6 +2,13 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-23 — Window controls fix, theme switch, restore defaults, thumbnail preview
+
+- **Fixed**: the custom title bar shipped in the UI modernization pass didn't actually work — you couldn't drag the window, and minimize/maximize/close silently did nothing. Tauri's permission system was blocking those window commands; `src-tauri/capabilities/default.json` now grants them explicitly. See the update note on [ADR 0005](docs/adr/0005-ui-modernization-stack.md).
+- Added a manual theme switch (System / Light / Dark) in Settings, under a new "Appearance" section — the app still defaults to following the OS, but you can now override it.
+- Added a "Restore defaults" button in Settings (with a confirmation dialog) that resets file type categories, cleanup thresholds, and trash/archive folder names back to the built-in defaults.
+- The plan-preview table can now be switched between a compact list and a thumbnail grid (small/medium/large), with real image thumbnails for picture files and file-type icons for everything else. View and scale choices are remembered between sessions.
+
 ## 2026-09-23 — UI modernization
 
 - Full visual and interaction redesign: Tailwind CSS v4 with a shared light/dark design-token system replaces the old scattered hardcoded colors, and Bits UI (accessible Svelte primitives) + lucide icons replace hand-rolled controls.
