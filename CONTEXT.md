@@ -30,7 +30,7 @@ The only genuinely irreversible action in the app's design is **emptying the tra
 Two defaults exist specifically because organizing tools are high blast-radius by nature:
 
 1. **Scans are non-recursive by default.** Only loose files directly in the root are considered; existing subfolders (an installer's files, a driver package) are left alone unless the user explicitly opts in per-scan. See [ADR 0003](docs/adr/0003-non-recursive-scan-by-default.md).
-2. **Drive roots and core OS folders are refused outright.** `is_protected_root` blocks scanning `C:\`, `C:\Windows`, `C:\Program Files`, etc., with a clear error rather than a partial, dangerous scan.
+2. **Drive roots, core OS folders and app data are refused outright.** `is_protected_root` blocks scanning `C:\`, `C:\Windows`, `C:\Program Files`, etc. `ProtectedDirs` also blocks anything under AppData/ProgramData (except the temp folder), and blocks a _recursive_ scan of the home folder itself. Each gets a clear error rather than a partial, dangerous scan.
 
 ## Where things live
 

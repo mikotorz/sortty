@@ -107,6 +107,54 @@ pub fn is_protected_root(root: &Path) -> bool {
     false
 }
 
+/// Per-user folders a scan must also stay out of, beyond the fixed names
+/// `is_protected_root` knows: app data (where rearranging files breaks
+/// installed programs) and the home folder itself, which is only refused
+/// for a recursive scan — its loose files are fine, but reaching into every
+/// subfolder of it would also sweep through AppData, `.ssh`, repos, etc.
+#[derive(Debug, Default, Clone)]
+pub struct ProtectedDirs {
+    pub home: Option<PathBuf>,
+    pub app_data: Vec<PathBuf>,
+    /// Folders inside `app_data` that are still fine to scan — the system
+    /// temp folder (`%LOCALAPPDATA%\Temp`), which nothing depends on.
+    pub allowed: Vec<PathBuf>,
+}
+
+impl ProtectedDirs {
+    pub fn from_env() -> Self {
+        let var = |name: &str| std::env::var_os(name).map(PathBuf::from);
+        ProtectedDirs {
+            home: var("USERPROFILE").or_else(|| var("HOME")),
+            app_data: ["APPDATA", "LOCALAPPDATA", "PROGRAMDATA"]
+                .iter()
+                .filter_map(|name| var(name))
+                .collect(),
+            allowed: vec![std::env::temp_dir()],
+        }
+    }
+
+    /// The error to refuse `root` with, if any. Compared case-insensitively,
+    /// since Windows paths are.
+    pub fn check(&self, root: &Path, recursive: bool) -> Result<(), AppError> {
+        let lower = |p: &Path| PathBuf::from(p.to_string_lossy().to_lowercase());
+        let root_lower = lower(root);
+        let under = |dirs: &[PathBuf]| dirs.iter().any(|dir| root_lower.starts_with(lower(dir)));
+        if under(&self.app_data) && !under(&self.allowed) {
+            return Err(AppError::ProtectedPath(root.to_path_buf()));
+        }
+        if recursive
+            && self
+                .home
+                .as_deref()
+                .is_some_and(|home| root_lower == lower(home))
+        {
+            return Err(AppError::ProtectedRecursive(root.to_path_buf()));
+        }
+        Ok(())
+    }
+}
+
 pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppError> {
     Ok(scan_with_progress(root, options, |_| {}, || false)?.entries)
 }
@@ -143,6 +191,7 @@ pub fn scan_with_progress(
     if is_protected_root(root) {
         return Err(AppError::ProtectedPath(root.to_path_buf()));
     }
+    ProtectedDirs::from_env().check(root, options.include_subfolders)?;
 
     let max_depth = if options.include_subfolders {
         usize::MAX
@@ -384,5 +433,43 @@ mod tests {
     fn scan_returns_protected_path_error_for_drive_root() {
         let err = scan(Path::new("C:\\"), &ScanOptions::default()).unwrap_err();
         assert!(matches!(err, AppError::ProtectedPath(_)));
+    }
+
+    fn dirs() -> ProtectedDirs {
+        ProtectedDirs {
+            home: Some(PathBuf::from(r"C:\Users\me")),
+            app_data: vec![
+                PathBuf::from(r"C:\Users\me\AppData\Roaming"),
+                PathBuf::from(r"C:\Users\me\AppData\Local"),
+                PathBuf::from(r"C:\ProgramData"),
+            ],
+            allowed: vec![PathBuf::from(r"C:\Users\me\AppData\Local\Temp")],
+        }
+    }
+
+    #[test]
+    fn refuses_app_data_folders_and_anything_inside_them() {
+        let d = dirs();
+        assert!(d
+            .check(Path::new(r"C:\Users\me\AppData\Roaming"), false)
+            .is_err());
+        assert!(d
+            .check(Path::new(r"c:\users\me\appdata\local\Some App"), false)
+            .is_err());
+        assert!(d.check(Path::new(r"C:\ProgramData\Vendor"), false).is_err());
+        assert!(d.check(Path::new(r"C:\Users\me\Downloads"), true).is_ok());
+        assert!(d
+            .check(Path::new(r"C:\Users\me\AppData\Local\Temp\x"), true)
+            .is_ok());
+    }
+
+    #[test]
+    fn refuses_the_home_folder_only_for_a_recursive_scan() {
+        let d = dirs();
+        assert!(d.check(Path::new(r"C:\Users\me"), false).is_ok());
+        assert!(matches!(
+            d.check(Path::new(r"C:\Users\me"), true),
+            Err(AppError::ProtectedRecursive(_))
+        ));
     }
 }

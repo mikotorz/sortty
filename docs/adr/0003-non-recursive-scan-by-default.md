@@ -27,3 +27,10 @@ Both checks live in `scan()` in [scanner.rs](../../src-tauri/src/engine/scanner.
 - The common case — "declutter the loose files sitting in my Downloads" — now matches what actually happens by default; recursive scanning is available but is an informed, explicit choice.
 - Dedup and Cleanup also default to top-level-only, which is a narrower duplicate/stale search by default than a power user doing a "deep clean" might want — the subfolder toggle covers that case.
 - The protected-root deny-list is intentionally small and exact-match rather than a broad heuristic (e.g. it does not try to detect "looks like a system folder") — false negatives here are acceptable (the non-recursive default is the main safety net); false positives that block a legitimate folder are not.
+
+## Amendment (2026-09-24): app data and the home folder
+
+`is_protected_root` only knew fixed top-level names. Two more guards now sit next to it (`scanner::ProtectedDirs`, read from the environment):
+
+- **Anything under `%APPDATA%`, `%LOCALAPPDATA%` or `%PROGRAMDATA%` is refused.** Rearranging files there breaks installed programs. The system temp folder is exempt, since nothing depends on it.
+- **The user's home folder itself is refused for a recursive scan only.** Its loose files are fine to sort, but "Include files in subfolders too" on the home folder would reach into AppData, `.ssh`, source repos and so on. The error tells the user to turn recursion off or pick a narrower folder.

@@ -15,6 +15,7 @@ A full review of the codebase before the move to Opus turned up bugs that could 
 - **Fixed: Empty Trash in Browse missed files deleted from subfolders.** Deleting a file in a subfolder put it in a separate trash folder inside that subfolder, where Empty Trash never looked. Browse now uses one trash folder at the top of the browsed folder (the same layout Find Duplicates uses), and it respects a trash folder renamed in Settings. Browse delete also refuses files outside the chosen folder. See the amendment to [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
 - **Fixed: one unreadable file stopped Find Duplicates entirely.** A single locked or vanished file made the whole scan fail. It's now skipped, the same way the regular scan skips it. Duplicate results also come out in the same order every time.
 - **Fixed: sorting with subfolders on flattened folders you'd already organized.** Sort by Type moved `Images/2019/photo.png` up to `Images/photo.png`, and Sort by Date did the same inside date folders. A file already anywhere inside its correct folder is now left where it is.
+- **More folders are now off-limits.** sortty refuses to scan inside AppData or ProgramData, where moving files breaks installed programs. It also refuses to reach into every subfolder of your whole user folder; sorting its loose files is still fine. See the amendment to [ADR 0003](docs/adr/0003-non-recursive-scan-by-default.md).
 
 ## 2026-09-24 — The whole page scrolls again
 

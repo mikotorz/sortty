@@ -10,10 +10,15 @@ pub enum AppError {
     #[error("path is not a directory: {}", .0.display())]
     NotADirectory(PathBuf),
     #[error(
-        "This looks like a system folder ({}) — sortty won't scan drive roots or core Windows folders. Pick a more specific folder.",
+        "This looks like a system or app-data folder ({}) — sortty won't scan drive roots, core Windows folders, or folders where programs keep their data. Pick a more specific folder.",
         .0.display()
     )]
     ProtectedPath(PathBuf),
+    #[error(
+        "sortty won't reach into every subfolder of your whole user folder ({}) — that would include app data and settings. Turn off \"Include files in subfolders too\", or pick a more specific folder like Downloads.",
+        .0.display()
+    )]
+    ProtectedRecursive(PathBuf),
     #[error("config error: {0}")]
     Config(String),
     #[error("run not found: {0}")]
