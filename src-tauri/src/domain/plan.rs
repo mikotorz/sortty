@@ -22,6 +22,9 @@ pub enum PlanMode {
     SortByDate,
     Dedup,
     Cleanup,
+    /// A manual delete of specific files, initiated from the folder browser
+    /// rather than a scan — see `commands::browse::delete_files`.
+    Delete,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

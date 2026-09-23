@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { open } from "@tauri-apps/plugin-dialog";
   import ApplyConfirmModal from "$lib/components/ApplyConfirmModal.svelte";
   import FolderPicker from "$lib/components/FolderPicker.svelte";
   import PreviewTable from "$lib/components/PreviewTable.svelte";
@@ -9,6 +10,18 @@
   import { selectedRoot } from "$lib/state/stores";
   import { scanSession } from "$lib/state/scanSession.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
+  import X from "@lucide/svelte/icons/x";
+
+  async function addExcludedFolder() {
+    const path = await open({ directory: true, multiple: false, title: "Choose a subfolder to exclude" });
+    if (typeof path === "string" && !scanSession.scanOptions.exclude_folders.includes(path)) {
+      scanSession.scanOptions.exclude_folders = [...scanSession.scanOptions.exclude_folders, path];
+    }
+  }
+
+  function removeExcludedFolder(path: string) {
+    scanSession.scanOptions.exclude_folders = scanSession.scanOptions.exclude_folders.filter((p) => p !== path);
+  }
 
   let confirmOpen = $state(false);
 
@@ -93,6 +106,19 @@
         This will also reach into existing subfolders (installer folders, app folders, etc.) and move
         individual files out of them.
       </p>
+
+      <div class="flex flex-col gap-2">
+        <span class="text-sm font-medium">Exclude specific subfolders</span>
+        {#each scanSession.scanOptions.exclude_folders as path (path)}
+          <div class="flex items-center gap-2">
+            <span class="field flex-1 truncate" title={path}>{path}</span>
+            <button type="button" class="btn-ghost px-2 py-1.5" aria-label="Stop excluding this folder" onclick={() => removeExcludedFolder(path)}>
+              <X size={14} />
+            </button>
+          </div>
+        {/each}
+        <button type="button" class="btn-ghost self-start" onclick={addExcludedFolder}>Exclude a folder…</button>
+      </div>
     {/if}
 
     <button

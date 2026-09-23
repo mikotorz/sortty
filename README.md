@@ -15,7 +15,9 @@ Every mode always shows a **dry-run preview** first — nothing moves until you 
 
 The preview can be filtered by path, and viewed either as a list or as a thumbnail grid (with a small/medium/large size control) — image files show a real thumbnail, everything else shows a file-type icon.
 
-By default, only files sitting loose at the top level of the chosen folder are touched — existing subfolders (an installer's files, a driver package, a project folder) are left completely alone unless you explicitly opt in to scanning subfolders too.
+By default, only files sitting loose at the top level of the chosen folder are touched — existing subfolders (an installer's files, a driver package, a project folder) are left completely alone unless you explicitly opt in to scanning subfolders too. When subfolders are included, specific ones can be excluded by picking them from a list, so you can scan recursively without touching a folder you don't want reorganized.
+
+The **Browse** page lets you look inside any folder — typically a sorted destination like `Images/` — and delete files that don't belong there. Like everything else, this doesn't really delete: files move into a `.sortty-trash` folder next to them, and the action can be undone from History.
 
 ## Tech stack
 

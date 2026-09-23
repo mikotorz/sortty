@@ -7,7 +7,7 @@ import type { Plan, PlanRequest, RunRecord, ScanOptions } from "../api/types";
  */
 class ScanSession {
   request = $state<PlanRequest>({ mode: "sort_by_type" });
-  scanOptions = $state<ScanOptions>({ include_subfolders: false, exclude: [] });
+  scanOptions = $state<ScanOptions>({ include_subfolders: false, exclude: [], exclude_folders: [] });
   plan = $state<Plan | null>(null);
   selected = $state<Record<string, boolean>>({});
   scanning = $state(false);

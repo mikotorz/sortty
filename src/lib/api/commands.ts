@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppSettings,
   CategoryRules,
+  FileEntry,
   Plan,
   PlanRequest,
   RunRecord,
@@ -73,4 +74,12 @@ export function openConfigFolder(): Promise<void> {
 
 export function readFilePreview(path: string): Promise<string> {
   return invoke("read_file_preview", { path });
+}
+
+export function browseFolder(path: string): Promise<FileEntry[]> {
+  return invoke("browse_folder", { path });
+}
+
+export function deleteFiles(root: string, paths: string[]): Promise<RunRecord> {
+  return invoke("delete_files", { root, paths });
 }

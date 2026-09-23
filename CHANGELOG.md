@@ -2,6 +2,12 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-23 — Browse & delete sorted files, exclude subfolders from a scan, dark-mode native controls
+
+- Added a new **Browse** page: pick any folder (typically a sorted destination like `Images/`), see everything currently in it, and delete files that don't belong. "Delete" moves files into a `.sortty-trash` folder next to them rather than deleting for real — it shows up in History and can be undone, exactly like a duplicate-cleanup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
+- Added an "Exclude specific subfolders" list under "Include files in subfolders too" on Sort & Clean — lets you opt individual subfolders (e.g. an installer folder) out of a recursive scan, instead of only being able to turn recursion off entirely.
+- **Fixed**: the scrollbar and number-input spinner arrows (Settings' "Stale after (days)" / "Minimum size (bytes)" fields) stayed light-themed in dark mode. These are native WebView controls that only follow the app's theme via the CSS `color-scheme` property, which was never set; added it alongside a themed scrollbar color.
+
 ## 2026-09-23 — Fix scan results lost when switching tabs, fix broken grid view
 
 - Fixed: switching from Sort & Clean to History or Settings and back would silently discard the current scan/plan and selection. Splitting Sort & Clean into its own route unmounts the page on navigation, which was wiping its local state; that state now lives in a small module-level session object instead, so it survives switching tabs.

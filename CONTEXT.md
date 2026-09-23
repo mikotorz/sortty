@@ -5,8 +5,9 @@ Sortty is a desktop tool that proposes and applies file-organizing operations ag
 ## Core model
 
 - **Root** — the folder the user selected to scan. Never a drive root or a core OS folder (`Windows`, `Program Files`, etc.) — see [ADR 0003](docs/adr/0003-non-recursive-scan-by-default.md) and the `is_protected_root` guard in [scanner.rs](src-tauri/src/engine/scanner.rs).
-- **Scan** — walking the root (and, only if opted in, its subfolders) to produce a list of `FileEntry` records: path, extension, size, modified/created timestamps. Certain files are never included in a scan — OS/browser bookkeeping files (`Thumbs.db`, `desktop.ini`, hidden/system-attribute files) and files that look like an in-progress download (`.crdownload`, `.part`, etc.).
+- **Scan** — walking the root (and, only if opted in, its subfolders) to produce a list of `FileEntry` records: path, extension, size, modified/created timestamps. Certain files are never included in a scan — OS/browser bookkeeping files (`Thumbs.db`, `desktop.ini`, hidden/system-attribute files) and files that look like an in-progress download (`.crdownload`, `.part`, etc.). `ScanOptions.exclude_folders` lets the user opt specific subfolders (by full path) out of a recursive scan, on top of the always-applied name-based `exclude` used to skip `.sortty-trash`/`.sortty-archive`.
 - **Mode** — which kind of organizing the user wants: `SortByType`, `SortByDate`, `Dedup` (find duplicates), or `Cleanup` (archive stale files). See `PlanMode` in [domain/plan.rs](src-tauri/src/domain/plan.rs).
+- **Browse** — an ad hoc, unscanned-by-mode view into a single folder's *current* contents (typically a sorted destination folder like `Images/`), used only to pick files for manual deletion. It reuses the ordinary scanner rather than a separate listing routine. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
 - **Plan** — the *proposed* set of `Operation`s for a mode, computed from a scan. A plan is pure data: generating one never touches the filesystem. This is what the dry-run preview renders.
 - **Operation** — one proposed change: a `source` path, a `destination` path, a `reason` (shown in the preview, e.g. "Duplicate of ..."), and an `OperationKind`:
   - `Move` — reorganizing a file (sort by type/date).
@@ -18,6 +19,8 @@ Sortty is a desktop tool that proposes and applies file-organizing operations ag
 ## The one invariant that matters: nothing is ever really deleted
 
 Sortty never calls a real delete. "Removing" a duplicate or archiving a stale file both compile down to a `Move` into a tool-owned staging folder (`.sortty-trash` or `.sortty-archive`) inside the same root — never the Windows Recycle Bin, and never `fs::remove_file`. This is why apply/undo can be perfectly symmetric, and why every mode is safe to experiment with. See [ADR 0002](docs/adr/0002-moves-not-deletes.md).
+
+Manually deleting a file from Browse follows the same rule: it's a `PlanMode::Delete` plan whose operations are ordinary `MoveToTrash` moves into a `.sortty-trash` folder next to the deleted file, applied and recorded through the exact same `RunRecord`/History/Undo path as a Dedup run. See [ADR 0006](docs/adr/0006-browse-delete-reuses-move-to-trash.md).
 
 The only genuinely irreversible action in the app's design is a future "empty the trash" feature — not yet built — which will need its own explicit, strongly-worded confirmation.
 
@@ -34,4 +37,4 @@ Two defaults exist specifically because organizing tools are high blast-radius b
 - Rust logic that turns a scan into a `Plan`: `src-tauri/src/engine/` (one file per mode).
 - Rust logic that turns a `Plan` into filesystem changes: `src-tauri/src/apply/` (`executor.rs` applies, `undo.rs` reverses, `store.rs` persists runs).
 - User-editable config (category → extension rules, stale-file threshold, trash/archive folder names): `src-tauri/src/config/settings.rs`, stored as TOML in the OS app-config directory.
-- Frontend: `src/lib/components/` (one component per screen concern: `PreviewTable`, `ApplyConfirmModal`, `SettingsPanel`, `HistoryPanel`), talking to the Rust backend only through `src/lib/api/commands.ts`.
+- Frontend: `src/lib/components/` (one component per screen concern: `PreviewTable`, `ApplyConfirmModal`, `SettingsPanel`, `HistoryPanel`, `BrowsePanel`), talking to the Rust backend only through `src/lib/api/commands.ts`.

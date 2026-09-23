@@ -1,5 +1,5 @@
 export type OperationKind = "move" | "move_to_trash" | "archive";
-export type PlanMode = "sort_by_type" | "sort_by_date" | "dedup" | "cleanup";
+export type PlanMode = "sort_by_type" | "sort_by_date" | "dedup" | "cleanup" | "delete";
 export type DateSource = "modified" | "created";
 export type DateGranularity = "year" | "year_month";
 export type KeepStrategy = "oldest_modified" | "shortest_path";
@@ -17,6 +17,7 @@ export interface FileEntry {
 export interface ScanOptions {
   include_subfolders: boolean;
   exclude: string[];
+  exclude_folders: string[];
 }
 
 export interface ScanResult {

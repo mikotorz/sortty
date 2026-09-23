@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::Metadata;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::domain::entry::FileEntry;
@@ -17,6 +17,11 @@ pub struct ScanOptions {
     /// Folder names to skip anywhere in the tree (e.g. ".sortty-trash", ".sortty-archive").
     #[serde(default)]
     pub exclude: Vec<String>,
+    /// Full folder paths to skip anywhere in the tree, chosen by the user
+    /// (e.g. an installer folder they don't want touched even with
+    /// `include_subfolders` on). Matched by exact path, unlike `exclude`.
+    #[serde(default)]
+    pub exclude_folders: Vec<String>,
 }
 
 impl Default for ScanOptions {
@@ -27,6 +32,7 @@ impl Default for ScanOptions {
                 ".sortty-trash".to_string(),
                 ".sortty-archive".to_string(),
             ],
+            exclude_folders: Vec::new(),
         }
     }
 }
@@ -101,6 +107,7 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
     };
 
     let exclude = options.exclude.clone();
+    let exclude_folders: Vec<PathBuf> = options.exclude_folders.iter().map(PathBuf::from).collect();
     let walker = WalkDir::new(root)
         .max_depth(max_depth)
         .into_iter()
@@ -109,7 +116,10 @@ pub fn scan(root: &Path, options: &ScanOptions) -> Result<Vec<FileEntry>, AppErr
                 return true;
             }
             let name = e.file_name().to_string_lossy();
-            !exclude.iter().any(|ex| ex.as_str() == name)
+            if exclude.iter().any(|ex| ex.as_str() == name) {
+                return false;
+            }
+            !exclude_folders.iter().any(|ex| ex == e.path())
         });
 
     let mut entries = Vec::new();
@@ -204,6 +214,24 @@ mod tests {
         };
         let entries = scan(dir.path(), &options).unwrap();
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn exclude_folders_skips_by_full_path_while_scanning_siblings() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("keep")).unwrap();
+        fs::write(dir.path().join("keep").join("a.txt"), b"a").unwrap();
+        fs::create_dir(dir.path().join("skip")).unwrap();
+        fs::write(dir.path().join("skip").join("b.txt"), b"b").unwrap();
+
+        let options = ScanOptions {
+            include_subfolders: true,
+            exclude_folders: vec![dir.path().join("skip").to_string_lossy().to_string()],
+            ..ScanOptions::default()
+        };
+        let entries = scan(dir.path(), &options).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].file_name, "a.txt");
     }
 
     #[test]

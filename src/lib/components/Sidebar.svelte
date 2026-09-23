@@ -3,9 +3,11 @@
   import WandTwo from "@lucide/svelte/icons/wand-2";
   import History from "@lucide/svelte/icons/history";
   import Settings from "@lucide/svelte/icons/settings";
+  import FolderOpen from "@lucide/svelte/icons/folder-open";
 
   const items = [
     { href: "/", label: "Sort & Clean", icon: WandTwo },
+    { href: "/browse", label: "Browse", icon: FolderOpen },
     { href: "/history", label: "History", icon: History },
     { href: "/settings", label: "Settings", icon: Settings },
   ];

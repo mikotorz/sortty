@@ -26,6 +26,7 @@
     sort_by_date: "Sort by date",
     dedup: "Find duplicates",
     cleanup: "Clean up stale files",
+    delete: "Delete files",
   };
 
   async function handleUndo(runId: string) {

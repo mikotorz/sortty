@@ -39,6 +39,8 @@ pub fn run() {
             commands::config::reset_category_rules,
             commands::config::open_config_folder,
             commands::preview::read_file_preview,
+            commands::browse::browse_folder,
+            commands::browse::delete_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
