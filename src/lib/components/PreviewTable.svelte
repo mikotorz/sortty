@@ -3,7 +3,7 @@
   import type { Operation, Plan } from "../api/types";
   import { formatBytes } from "../format";
   import { cn } from "../cn";
-  import { previewViewMode, previewScale, SCALE_PX } from "../state/previewView";
+  import { previewViewMode, previewScale, SCALE_PX, type ThumbScale } from "../state/previewView";
   import FileThumb from "./FileThumb.svelte";
   import Search from "@lucide/svelte/icons/search";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -14,6 +14,12 @@
   import LayoutGrid from "@lucide/svelte/icons/layout-grid";
 
   let { plan, selected = $bindable() }: { plan: Plan; selected: Record<string, boolean> } = $props();
+
+  const SCALE_OPTIONS: [ThumbScale, string][] = [
+    ["sm", "S"],
+    ["md", "M"],
+    ["lg", "L"],
+  ];
 
   let query = $state("");
   let openGroups = $state<Record<string, boolean>>({});
@@ -92,14 +98,14 @@
   <div class="flex items-center gap-3">
     {#if $previewViewMode === "grid"}
       <div class="inline-flex rounded-md border border-[var(--color-border)] p-0.5 text-xs">
-        {#each [["sm", "S"], ["md", "M"], ["lg", "L"]] as [value, label] ([value])}
+        {#each SCALE_OPTIONS as [value, label] (value)}
           <button
             type="button"
             class={cn(
               "rounded px-2 py-1",
               $previewScale === value ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]",
             )}
-            onclick={() => previewScale.set(value as "sm" | "md" | "lg")}
+            onclick={() => previewScale.set(value)}
           >
             {label}
           </button>
