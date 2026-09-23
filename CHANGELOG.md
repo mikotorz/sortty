@@ -2,6 +2,11 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-23 — Fix scan results lost when switching tabs, fix broken grid view
+
+- Fixed: switching from Sort & Clean to History or Settings and back would silently discard the current scan/plan and selection. Splitting Sort & Clean into its own route unmounts the page on navigation, which was wiping its local state; that state now lives in a small module-level session object instead, so it survives switching tabs.
+- Fixed: the plan-preview table's Grid view (added in the previous entry) didn't actually render anything — a scale-selector button list was rebuilt fresh on every render, which Svelte flagged as an unstable key and threw as a runtime error that broke the grid's rendering alongside it.
+
 ## 2026-09-23 — Window controls fix, theme switch, restore defaults, thumbnail preview
 
 - **Fixed**: the custom title bar shipped in the UI modernization pass didn't actually work — you couldn't drag the window, and minimize/maximize/close silently did nothing. Tauri's permission system was blocking those window commands; `src-tauri/capabilities/default.json` now grants them explicitly. See the update note on [ADR 0005](docs/adr/0005-ui-modernization-stack.md).
