@@ -8,6 +8,7 @@
     applyPlan,
     cancelCurrentOperation,
     generatePlan,
+    undoRun,
   } from "$lib/api/commands";
   import type { PlanProgress } from "$lib/api/types";
   import { formatBytes } from "$lib/format";
@@ -16,6 +17,7 @@
   import { scanSession } from "$lib/state/scanSession.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import X from "@lucide/svelte/icons/x";
+  import Undo2 from "@lucide/svelte/icons/undo-2";
 
   async function addExcludedFolder() {
     const path = await open({
@@ -109,6 +111,31 @@
     } finally {
       scanSession.scanning = false;
       scanSession.scanProgress = null;
+    }
+  }
+
+  let undoingLastRun = $state(false);
+
+  /** Undoes the run shown in the result banner, without a trip to History. */
+  async function undoLastRun() {
+    const run = scanSession.lastRun;
+    if (!run) return;
+    undoingLastRun = true;
+    try {
+      const result = await undoRun(run.run_id);
+      if (result.conflicts.length > 0) {
+        pushToast(
+          "info",
+          `Restored ${result.restored} file(s); ${result.conflicts.length} couldn't be put back. You can retry from History.`,
+        );
+      } else {
+        pushToast("success", `Undone — restored ${result.restored} file(s).`);
+      }
+      scanSession.lastRun = null;
+    } catch (e) {
+      pushToast("error", `Undo failed: ${e}`);
+    } finally {
+      undoingLastRun = false;
     }
   }
 
@@ -230,6 +257,30 @@
       <div
         class="rounded-md bg-[var(--color-success-bg)] text-[var(--color-success-fg)] px-3 py-2.5 text-sm flex flex-col gap-1"
       >
+        <div class="flex items-center justify-between gap-3">
+          <p class="m-0 font-medium">
+            Moved {scanSession.lastRun.applied_operations.length}
+            file{scanSession.lastRun.applied_operations.length === 1
+              ? ""
+              : "s"}{scanSession.lastRun.cancelled
+              ? " before you cancelled"
+              : ""}.
+          </p>
+          {#if scanSession.lastRun.applied_operations.length > 0}
+            <button
+              type="button"
+              class="btn-ghost flex items-center gap-1.5 px-2.5 py-1 text-xs"
+              onclick={undoLastRun}
+              disabled={undoingLastRun}
+            >
+              {#if undoingLastRun}<LoaderCircle
+                  size={12}
+                  class="animate-spin"
+                />{:else}<Undo2 size={12} />{/if}
+              {undoingLastRun ? "Undoing…" : "Undo this run"}
+            </button>
+          {/if}
+        </div>
         {#if trashedBytes > 0}<p class="m-0">
             {formatBytes(trashedBytes)} moved to trash (not yet permanently deleted).
           </p>{/if}

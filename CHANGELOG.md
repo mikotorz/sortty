@@ -2,6 +2,10 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Undo right after applying
+
+- **"Undo this run" button.** After you apply a plan, the result box on Sort & Clean now says how many files moved and offers **Undo this run** straight away. Before, the only way to undo was from History.
+
 ## 2026-09-24 — Review follow-up: sturdier internals
 
 The second half of the pre-Opus review: nothing new to click, but safer and faster underneath.
