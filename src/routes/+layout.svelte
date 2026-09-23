@@ -7,7 +7,7 @@
   import Sidebar from "$lib/components/Sidebar.svelte";
   import ToastStack from "$lib/components/ToastStack.svelte";
   import { getSettings } from "$lib/api/commands";
-  import { selectedRoot } from "$lib/state/stores";
+  import { appSettings, selectedRoot } from "$lib/state/stores";
   import { scanSession } from "$lib/state/scanSession.svelte";
   import {
     isPlanRequestMode,
@@ -44,6 +44,7 @@
   onMount(async () => {
     try {
       const settings = await getSettings();
+      appSettings.set(settings);
       if (get(selectedRoot) === null && settings.general.default_root) {
         selectedRoot.set(settings.general.default_root);
       }
@@ -54,6 +55,7 @@
       ) {
         scanSession.request = defaultRequestForMode(
           settings.general.last_used_mode,
+          settings,
         );
       }
     } finally {

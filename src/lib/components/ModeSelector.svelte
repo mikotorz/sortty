@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PlanRequest } from "../api/types";
   import { defaultRequestForMode } from "../state/planRequestDefaults";
+  import { appSettings } from "../state/stores";
   import { cn } from "../cn";
   import FolderTree from "@lucide/svelte/icons/folder-tree";
   import Clock from "@lucide/svelte/icons/clock";
@@ -42,7 +43,7 @@
   ];
 
   function setMode(mode: PlanRequest["mode"]) {
-    request = defaultRequestForMode(mode);
+    request = defaultRequestForMode(mode, $appSettings);
   }
 </script>
 

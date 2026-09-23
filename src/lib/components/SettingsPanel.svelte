@@ -15,6 +15,9 @@
   } from "../api/commands";
   import type { AppSettings, CategoryRules } from "../api/types";
   import { pushToast } from "../state/toast";
+  import { appSettings as appSettingsStore } from "../state/stores";
+  import { scanSession } from "../state/scanSession.svelte";
+  import { defaultRequestForMode } from "../state/planRequestDefaults";
   import { theme, type Theme } from "../state/theme";
   import { cn } from "../cn";
   import ConfirmModal from "./ConfirmModal.svelte";
@@ -87,12 +90,23 @@
         };
       }
       await Promise.all([saveCategoryRules(rules), saveSettings(appSettings)]);
+      publishModeDefaults($state.snapshot(appSettings));
       pushToast("success", "Settings saved.");
     } catch (e) {
       pushToast("error", `Save failed: ${e}`);
     } finally {
       saving = false;
     }
+  }
+
+  /** Makes Sort & Clean pick up newly saved mode defaults, including for
+   * the mode that's already selected there. */
+  function publishModeDefaults(saved: AppSettings) {
+    appSettingsStore.set(saved);
+    scanSession.request = defaultRequestForMode(
+      scanSession.request.mode,
+      saved,
+    );
   }
 
   async function restoreDefaults() {
@@ -108,6 +122,7 @@
           def.extensions.join(", "),
         ]),
       );
+      publishModeDefaults(s);
       pushToast("success", "Settings restored to defaults.");
     } catch (e) {
       pushToast("error", `Restore failed: ${e}`);

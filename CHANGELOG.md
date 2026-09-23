@@ -11,6 +11,7 @@ A full review of the codebase before the move to Opus turned up bugs that could 
 - **Fixed: an undo that couldn't restore every file couldn't be retried.** The run was marked undone anyway and the Undo button disappeared. It now shows as **Partially undone** with a **Retry undo** button, and a retry only tries the files that are still out of place. Runs you cancelled partway through can now be undone from History too.
 - **Undo now cleans up empty folders.** Undoing a sort used to leave empty `Images/`, `2026/01/` or `.sortty-trash` folders behind. Folders the run left empty are now removed; a folder with anything still in it is never touched. See the amendment to [ADR 0002](docs/adr/0002-moves-not-deletes.md).
 - **Fixed: Sort by Date could put files in the wrong month.** Dates were grouped by UTC rather than your own clock. In a time zone ahead of UTC, a file saved just after midnight on the 1st landed in the previous month's folder, or on 1 January the previous year's. Files are now grouped by local time.
+- **Fixed: the mode defaults in Settings had no effect.** "Stale after (days)", "Minimum size" and the other per-mode defaults were saved but never used; Sort & Clean always started from 180 days and 1 KB. Choosing a mode now starts from your saved defaults, and saving Settings updates the mode that's already selected.
 
 ## 2026-09-24 — The whole page scrolls again
 
