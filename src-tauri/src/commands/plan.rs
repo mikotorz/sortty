@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
+use crate::commands::blocking;
 use crate::commands::cancel::CancelFlag;
 use crate::config::settings;
 use crate::domain::plan::Plan;
@@ -153,24 +154,29 @@ pub async fn generate_plan(
         .app_config_dir()
         .map_err(|e| AppError::Other(e.to_string()))?;
 
-    let mut last_sent = 0usize;
-    let plan = generate_plan_at(
-        &PathBuf::from(root),
-        scan_options.unwrap_or_default(),
-        request,
-        &config_dir,
-        |count| {
-            if count - last_sent >= 50 {
-                on_progress.send(ScanProgress { count }).ok();
-                last_sent = count;
-            }
-        },
-        || cancel_flag.is_cancelled(),
-    )?;
-    if let Some(plan) = &plan {
-        plan_store.put(plan.clone());
-    }
-    Ok(plan)
+    let cancel_flag = cancel_flag.inner().clone();
+    let plan_store = plan_store.inner().clone();
+    blocking(move || {
+        let mut last_sent = 0usize;
+        let plan = generate_plan_at(
+            &PathBuf::from(root),
+            scan_options.unwrap_or_default(),
+            request,
+            &config_dir,
+            |count| {
+                if count - last_sent >= 50 {
+                    on_progress.send(ScanProgress { count }).ok();
+                    last_sent = count;
+                }
+            },
+            || cancel_flag.is_cancelled(),
+        )?;
+        if let Some(plan) = &plan {
+            plan_store.put(plan.clone());
+        }
+        Ok(plan)
+    })
+    .await
 }
 
 #[cfg(test)]

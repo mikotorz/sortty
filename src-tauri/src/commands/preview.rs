@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::path::Path;
 
+use crate::commands::blocking;
 use crate::error::AppError;
 
 const MAX_PREVIEW_BYTES: u64 = 15 * 1024 * 1024;
@@ -38,7 +39,7 @@ pub fn read_file_preview_at(p: &Path) -> Result<String, AppError> {
 
 #[tauri::command]
 pub async fn read_file_preview(path: String) -> Result<String, AppError> {
-    read_file_preview_at(Path::new(&path))
+    blocking(move || read_file_preview_at(Path::new(&path))).await
 }
 
 #[cfg(test)]

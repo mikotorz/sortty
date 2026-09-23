@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
+use crate::commands::blocking;
 use crate::config::settings::{self, AppSettings};
 use crate::engine::scanner::{self, ScanOptions};
 use crate::error::AppError;
@@ -97,7 +98,7 @@ pub async fn preview_staging_folder(
     kind: StagingKind,
 ) -> Result<EmptyResult, AppError> {
     let settings = settings::load_settings(&config_dir(&app)?)?;
-    preview_staging_folder_at(Path::new(&root), kind, &settings)
+    blocking(move || preview_staging_folder_at(Path::new(&root), kind, &settings)).await
 }
 
 #[tauri::command]
@@ -107,7 +108,7 @@ pub async fn empty_staging_folder(
     kind: StagingKind,
 ) -> Result<EmptyResult, AppError> {
     let settings = settings::load_settings(&config_dir(&app)?)?;
-    empty_staging_folder_at(Path::new(&root), kind, &settings)
+    blocking(move || empty_staging_folder_at(Path::new(&root), kind, &settings)).await
 }
 
 #[cfg(test)]

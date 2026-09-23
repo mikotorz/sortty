@@ -2,6 +2,7 @@ use std::path::Path;
 use tauri::{AppHandle, Manager};
 
 use crate::apply::{store, undo};
+use crate::commands::blocking;
 use crate::domain::run::{RunRecord, RunSummary, UndoResult};
 use crate::error::AppError;
 
@@ -33,7 +34,8 @@ pub fn undo_run_at(data_dir: &Path, run_id: &str) -> Result<UndoResult, AppError
 
 #[tauri::command]
 pub async fn undo_run(app: AppHandle, run_id: String) -> Result<UndoResult, AppError> {
-    undo_run_at(&data_dir(&app)?, &run_id)
+    let data_dir = data_dir(&app)?;
+    blocking(move || undo_run_at(&data_dir, &run_id)).await
 }
 
 /// Undoes the most recent run that hasn't already been undone. Relies on
@@ -56,7 +58,8 @@ fn undo_and_save(data_dir: &Path, mut record: RunRecord) -> Result<UndoResult, A
 
 #[tauri::command]
 pub async fn undo_last_run(app: AppHandle) -> Result<UndoResult, AppError> {
-    undo_last_run_at(&data_dir(&app)?)
+    let data_dir = data_dir(&app)?;
+    blocking(move || undo_last_run_at(&data_dir)).await
 }
 
 #[cfg(test)]

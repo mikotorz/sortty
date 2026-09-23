@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 use crate::apply::{executor, store};
+use crate::commands::blocking;
 use crate::config::settings::{self, TrashSettings};
 use crate::domain::entry::FileEntry;
 use crate::domain::plan::{staged_destination, Operation, OperationKind, Plan, PlanMode};
@@ -34,7 +35,8 @@ fn load_trash_settings(app: &AppHandle) -> Result<TrashSettings, AppError> {
 
 #[tauri::command]
 pub async fn browse_folder(app: AppHandle, path: String) -> Result<Vec<FileEntry>, AppError> {
-    browse_folder_at(Path::new(&path), &load_trash_settings(&app)?)
+    let trash = load_trash_settings(&app)?;
+    blocking(move || browse_folder_at(Path::new(&path), &trash)).await
 }
 
 /// "Deletes" files the user picked while browsing a folder — in keeping
@@ -99,12 +101,15 @@ pub async fn delete_files(
         .map_err(|e| AppError::Other(e.to_string()))?;
     let trash = load_trash_settings(&app)?;
     let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-    delete_files_at(
-        Path::new(&root),
-        &paths,
-        &data_dir,
-        &trash.staging_folder_name,
-    )
+    blocking(move || {
+        delete_files_at(
+            Path::new(&root),
+            &paths,
+            &data_dir,
+            &trash.staging_folder_name,
+        )
+    })
+    .await
 }
 #[cfg(test)]
 mod tests {

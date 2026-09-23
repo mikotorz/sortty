@@ -4,6 +4,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
 use crate::apply::{executor, store};
+use crate::commands::blocking;
 use crate::commands::cancel::CancelFlag;
 use crate::commands::plan::PlanStore;
 use crate::domain::run::RunRecord;
@@ -52,20 +53,25 @@ pub async fn apply_plan(
         .path()
         .app_data_dir()
         .map_err(|e| AppError::Other(e.to_string()))?;
-    let mut last_sent = 0usize;
-    apply_plan_at(
-        &plan_store,
-        &plan_id,
-        &selected_ids,
-        &data_dir,
-        |completed, total| {
-            if completed - last_sent >= 50 || completed == total {
-                on_progress.send(ApplyProgress { completed, total }).ok();
-                last_sent = completed;
-            }
-        },
-        || cancel_flag.is_cancelled(),
-    )
+    let cancel_flag = cancel_flag.inner().clone();
+    let plan_store = plan_store.inner().clone();
+    blocking(move || {
+        let mut last_sent = 0usize;
+        apply_plan_at(
+            &plan_store,
+            &plan_id,
+            &selected_ids,
+            &data_dir,
+            |completed, total| {
+                if completed - last_sent >= 50 || completed == total {
+                    on_progress.send(ApplyProgress { completed, total }).ok();
+                    last_sent = completed;
+                }
+            },
+            || cancel_flag.is_cancelled(),
+        )
+    })
+    .await
 }
 
 #[cfg(test)]
