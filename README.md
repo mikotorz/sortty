@@ -18,7 +18,7 @@ By default, only files sitting loose at the top level of the chosen folder are t
 ## Tech stack
 
 - **Backend**: Rust (Tauri v2) — all file scanning, categorization, and file I/O happens here.
-- **Frontend**: SvelteKit + TypeScript, built as a static SPA served in Tauri's webview.
+- **Frontend**: SvelteKit + TypeScript, built as a static SPA served in Tauri's webview, styled with Tailwind CSS and [Bits UI](https://bits-ui.com/) (accessible unstyled component primitives). The window uses a custom frameless title bar and follows the OS light/dark theme automatically.
 
 See [CONTEXT.md](CONTEXT.md) for the domain model and [docs/adr/](docs/adr/) for key design decisions.
 

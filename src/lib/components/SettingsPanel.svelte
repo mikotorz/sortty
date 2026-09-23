@@ -8,13 +8,16 @@
     saveSettings,
   } from "../api/commands";
   import type { AppSettings, CategoryRules } from "../api/types";
+  import { pushToast } from "../state/toast";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
+  import X from "@lucide/svelte/icons/x";
 
   let rules = $state<CategoryRules | null>(null);
   let appSettings = $state<AppSettings | null>(null);
   let extensionsText = $state<Record<string, string>>({});
   let newCategoryName = $state("");
-  let saveMessage = $state<string | null>(null);
   let loading = $state(true);
+  let saving = $state(false);
 
   onMount(load);
 
@@ -45,137 +48,90 @@
 
   async function saveAll() {
     if (!rules || !appSettings) return;
-    for (const [name, text] of Object.entries(extensionsText)) {
-      rules.categories[name] = {
-        extensions: text
-          .split(",")
-          .map((e) => e.trim().replace(/^\./, "").toLowerCase())
-          .filter(Boolean),
-      };
+    saving = true;
+    try {
+      for (const [name, text] of Object.entries(extensionsText)) {
+        rules.categories[name] = {
+          extensions: text
+            .split(",")
+            .map((e) => e.trim().replace(/^\./, "").toLowerCase())
+            .filter(Boolean),
+        };
+      }
+      await Promise.all([saveCategoryRules(rules), saveSettings(appSettings)]);
+      pushToast("success", "Settings saved.");
+    } catch (e) {
+      pushToast("error", `Save failed: ${e}`);
+    } finally {
+      saving = false;
     }
-    await Promise.all([saveCategoryRules(rules), saveSettings(appSettings)]);
-    saveMessage = "Saved.";
-    setTimeout(() => (saveMessage = null), 2000);
   }
 </script>
 
 {#if loading || !rules || !appSettings}
-  <p>Loading settings…</p>
+  <p class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+    <LoaderCircle size={15} class="animate-spin" /> Loading settings…
+  </p>
 {:else}
-  <section>
-    <h3>File type categories</h3>
-    <p class="hint">Destination folder names and the extensions that route to them.</p>
-    {#each Object.keys(rules.categories) as name (name)}
-      <div class="category-row">
-        <span class="category-name">{name}</span>
-        <input type="text" bind:value={extensionsText[name]} placeholder="jpg, png, gif" />
-        <button type="button" class="ghost" onclick={() => removeCategory(name)}>Remove</button>
+  <section class="mb-6">
+    <h3 class="mb-0.5 text-sm font-semibold">File type categories</h3>
+    <p class="mt-0 mb-3 text-xs text-[var(--color-text-muted)]">Destination folder names and the extensions that route to them.</p>
+    <div class="flex flex-col gap-2">
+      {#each Object.keys(rules.categories) as name (name)}
+        <div class="flex items-center gap-2">
+          <span class="w-28 shrink-0 text-sm font-medium">{name}</span>
+          <input class="field flex-1" type="text" bind:value={extensionsText[name]} placeholder="jpg, png, gif" />
+          <button type="button" class="btn-ghost px-2 py-1.5" aria-label="Remove category" onclick={() => removeCategory(name)}>
+            <X size={14} />
+          </button>
+        </div>
+      {/each}
+      <div class="flex items-center gap-2">
+        <input class="field flex-1" type="text" placeholder="New category name" bind:value={newCategoryName} />
+        <button type="button" class="btn-ghost" onclick={addCategory}>Add category</button>
       </div>
-    {/each}
-    <div class="category-row">
-      <input type="text" placeholder="New category name" bind:value={newCategoryName} />
-      <button type="button" onclick={addCategory}>Add category</button>
     </div>
-    <label class="inline">
+    <label class="mt-3 flex items-center gap-2 text-sm">
       "Other" folder name
-      <input type="text" bind:value={rules.other_folder_name} />
+      <input class="field" type="text" bind:value={rules.other_folder_name} />
     </label>
   </section>
 
-  <section>
-    <h3>Stale-file cleanup</h3>
-    <label class="inline">
+  <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">Stale-file cleanup</h3>
+    <label class="flex items-center gap-2 text-sm">
       Stale after (days)
-      <input type="number" min="1" bind:value={appSettings.cleanup.stale_days} />
+      <input class="field max-w-[8rem]" type="number" min="1" bind:value={appSettings.cleanup.stale_days} />
     </label>
   </section>
 
-  <section>
-    <h3>Duplicate detection</h3>
-    <label class="inline">
+  <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">Duplicate detection</h3>
+    <label class="flex items-center gap-2 text-sm">
       Minimum size (bytes)
-      <input type="number" min="0" bind:value={appSettings.dedup.min_size_bytes} />
+      <input class="field max-w-[8rem]" type="number" min="0" bind:value={appSettings.dedup.min_size_bytes} />
     </label>
   </section>
 
-  <section>
-    <h3>Trash &amp; archive folders</h3>
-    <label class="inline">
-      Trash folder name
-      <input type="text" bind:value={appSettings.trash.staging_folder_name} />
-    </label>
-    <label class="inline">
-      Archive folder name
-      <input type="text" bind:value={appSettings.trash.archive_folder_name} />
-    </label>
+  <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">Trash &amp; archive folders</h3>
+    <div class="flex flex-col gap-2">
+      <label class="flex items-center gap-2 text-sm">
+        Trash folder name
+        <input class="field max-w-[10rem]" type="text" bind:value={appSettings.trash.staging_folder_name} />
+      </label>
+      <label class="flex items-center gap-2 text-sm">
+        Archive folder name
+        <input class="field max-w-[10rem]" type="text" bind:value={appSettings.trash.archive_folder_name} />
+      </label>
+    </div>
   </section>
 
-  <div class="footer">
-    <button type="button" onclick={saveAll}>Save settings</button>
-    <button type="button" class="ghost" onclick={openConfigFolder}>Open config folder</button>
-    {#if saveMessage}<span class="save-message">{saveMessage}</span>{/if}
+  <div class="flex items-center gap-3">
+    <button type="button" class="btn-primary" onclick={saveAll} disabled={saving}>
+      {#if saving}<LoaderCircle size={14} class="animate-spin" />{/if}
+      {saving ? "Saving…" : "Save settings"}
+    </button>
+    <button type="button" class="btn-ghost" onclick={openConfigFolder}>Open config folder</button>
   </div>
 {/if}
-
-<style>
-  section {
-    margin-bottom: 1.5rem;
-  }
-  h3 {
-    margin-bottom: 0.25rem;
-  }
-  .hint {
-    font-size: 0.8rem;
-    opacity: 0.7;
-    margin-top: 0;
-  }
-  .category-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.4rem;
-  }
-  .category-name {
-    width: 120px;
-    font-weight: 600;
-  }
-  input[type="text"],
-  input[type="number"] {
-    padding: 0.4rem 0.5rem;
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #ccc);
-    flex: 1;
-  }
-  .inline {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    margin-bottom: 0.4rem;
-  }
-  .inline input {
-    max-width: 160px;
-  }
-  button {
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    background: #396cd8;
-    color: white;
-    cursor: pointer;
-  }
-  button.ghost {
-    background: transparent;
-    border-color: var(--border-color, #ccc);
-    color: inherit;
-  }
-  .footer {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .save-message {
-    font-size: 0.85rem;
-    opacity: 0.7;
-  }
-</style>

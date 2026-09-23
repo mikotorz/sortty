@@ -1,17 +1,34 @@
 <script lang="ts">
+  import { Collapsible, Checkbox } from "bits-ui";
   import type { Operation, Plan } from "../api/types";
   import { formatBytes } from "../format";
+  import Search from "@lucide/svelte/icons/search";
+  import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import Check from "@lucide/svelte/icons/check";
+  import Minus from "@lucide/svelte/icons/minus";
+  import FolderCheck from "@lucide/svelte/icons/folder-check";
 
   let { plan, selected = $bindable() }: { plan: Plan; selected: Record<string, boolean> } = $props();
+
+  let query = $state("");
+  let openGroups = $state<Record<string, boolean>>({});
 
   function dirOf(path: string): string {
     const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     return idx === -1 ? path : path.slice(0, idx);
   }
 
+  let filteredOps = $derived.by(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return plan.operations;
+    return plan.operations.filter(
+      (op) => op.source.toLowerCase().includes(q) || op.destination.toLowerCase().includes(q),
+    );
+  });
+
   let groups = $derived.by(() => {
     const map = new Map<string, Operation[]>();
-    for (const op of plan.operations) {
+    for (const op of filteredOps) {
       const key = dirOf(op.destination);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(op);
@@ -19,7 +36,12 @@
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   });
 
+  function isGroupOpen(dir: string): boolean {
+    return openGroups[dir] ?? true;
+  }
+
   let allSelected = $derived(plan.operations.length > 0 && plan.operations.every((op) => selected[op.id]));
+  let someSelected = $derived(!allSelected && plan.operations.some((op) => selected[op.id]));
 
   function toggleAll(value: boolean) {
     const next = { ...selected };
@@ -32,94 +54,131 @@
     for (const op of ops) next[op.id] = value;
     selected = next;
   }
+
+  function groupChecked(ops: Operation[]): boolean {
+    return ops.every((op) => selected[op.id]);
+  }
+
+  function groupIndeterminate(ops: Operation[]): boolean {
+    return !groupChecked(ops) && ops.some((op) => selected[op.id]);
+  }
 </script>
 
-<div class="preview-header">
-  <label>
-    <input type="checkbox" checked={allSelected} onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)} />
+<div class="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5 mb-3 gap-3">
+  <label class="flex items-center gap-2 text-sm font-medium">
+    <Checkbox.Root
+      checked={allSelected}
+      indeterminate={someSelected}
+      onCheckedChange={(v) => toggleAll(v === true)}
+      class="chk"
+    >
+      {#snippet children({ checked, indeterminate })}
+        {#if indeterminate}<Minus size={11} />{:else if checked}<Check size={11} />{/if}
+      {/snippet}
+    </Checkbox.Root>
     Select all ({plan.summary.total_files} files, {formatBytes(plan.summary.total_bytes)})
   </label>
+
+  <div class="relative">
+    <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+    <input
+      type="text"
+      placeholder="Filter by path…"
+      bind:value={query}
+      class="w-56 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
+    />
+  </div>
 </div>
 
 {#if plan.operations.length === 0}
-  <p class="empty">Nothing to do — this folder already looks tidy for this mode.</p>
+  <div class="flex flex-col items-center gap-2 py-10 text-[var(--color-text-muted)]">
+    <FolderCheck size={28} />
+    <p class="m-0 text-sm">Nothing to do — this folder already looks tidy for this mode.</p>
+  </div>
+{:else if groups.length === 0}
+  <p class="py-6 text-sm text-[var(--color-text-muted)]">No operations match "{query}".</p>
 {/if}
 
 {#each groups as [dir, ops] (dir)}
-  <div class="group">
-    <div class="group-header">
-      <label>
-        <input
-          type="checkbox"
-          checked={ops.every((op) => selected[op.id])}
-          onchange={(e) => toggleGroup(ops, (e.target as HTMLInputElement).checked)}
-        />
-        <code>{dir}</code>
-        <span class="count">({ops.length})</span>
-      </label>
+  <Collapsible.Root
+    class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
+    open={isGroupOpen(dir)}
+    onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
+  >
+    <div class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5">
+      <Checkbox.Root
+        checked={groupChecked(ops)}
+        indeterminate={groupIndeterminate(ops)}
+        onCheckedChange={(v) => toggleGroup(ops, v === true)}
+        class="chk"
+      >
+        {#snippet children({ checked, indeterminate })}
+          {#if indeterminate}<Minus size={11} />{:else if checked}<Check size={11} />{/if}
+        {/snippet}
+      </Checkbox.Root>
+      <Collapsible.Trigger class="group-trigger flex flex-1 items-center gap-1.5 text-left text-sm">
+        <ChevronRight size={14} class="chevron shrink-0 text-[var(--color-text-muted)]" />
+        <code class="text-[0.8rem]">{dir}</code>
+        <span class="text-xs text-[var(--color-text-muted)]">({ops.length})</span>
+      </Collapsible.Trigger>
     </div>
-    <table>
-      <tbody>
-        {#each ops as op (op.id)}
-          <tr>
-            <td class="checkbox-cell">
-              <input type="checkbox" bind:checked={selected[op.id]} />
-            </td>
-            <td class="path-cell" title={op.source}>{op.source}</td>
-            <td class="reason-cell">{op.reason}</td>
-            <td class="size-cell">{formatBytes(op.size_bytes)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+    <Collapsible.Content>
+      <table class="w-full border-collapse text-sm">
+        <tbody>
+          {#each ops as op (op.id)}
+            <tr class="hover:bg-[var(--color-surface-hover)]">
+              <td class="w-8 px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]">
+                <Checkbox.Root
+                  checked={selected[op.id]}
+                  onCheckedChange={(v) => (selected = { ...selected, [op.id]: v === true })}
+                  class="chk"
+                >
+                  {#snippet children({ checked })}
+                    {#if checked}<Check size={11} />{/if}
+                  {/snippet}
+                </Checkbox.Root>
+              </td>
+              <td class="max-w-0 w-[55%] overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]" title={op.source}>
+                {op.source}
+              </td>
+              <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+                {op.reason}
+              </td>
+              <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-right whitespace-nowrap">
+                {formatBytes(op.size_bytes)}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </Collapsible.Content>
+  </Collapsible.Root>
 {/each}
 
 <style>
-  .preview-header {
-    padding: 0.5rem 0;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border-color, #ccc);
-    margin-bottom: 0.5rem;
+  :global(.chk) {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-accent-fg);
+    padding: 0;
+    cursor: pointer;
   }
-  .empty {
-    opacity: 0.7;
-    padding: 1rem 0;
+  :global(.chk[data-state="checked"]),
+  :global(.chk[data-state="indeterminate"]) {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
   }
-  .group {
-    margin-bottom: 1rem;
+  :global(.chevron) {
+    transition: transform 120ms ease;
   }
-  .group-header {
-    font-size: 0.85rem;
-    padding: 0.35rem 0;
-  }
-  .group-header .count {
-    opacity: 0.6;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
-  td {
-    padding: 0.3rem 0.5rem;
-    border-bottom: 1px solid var(--border-color, #eee);
-  }
-  .checkbox-cell {
-    width: 2rem;
-  }
-  .path-cell {
-    max-width: 0;
-    width: 55%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .reason-cell {
-    opacity: 0.75;
-  }
-  .size-cell {
-    text-align: right;
-    white-space: nowrap;
+  :global(.group[data-state="open"] .chevron) {
+    transform: rotate(90deg);
   }
 </style>
