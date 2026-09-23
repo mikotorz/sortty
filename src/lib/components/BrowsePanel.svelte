@@ -5,13 +5,17 @@
   import type { FileEntry } from "../api/types";
   import { formatBytes } from "../format";
   import { pushToast } from "../state/toast";
-  import DeleteConfirmModal from "./DeleteConfirmModal.svelte";
+  import { groupByDir, isGroupChecked, isGroupIndeterminate, withGroupSelection } from "../grouping";
+  import ConfirmModal from "./ConfirmModal.svelte";
+  import VirtualList from "./VirtualList.svelte";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Check from "@lucide/svelte/icons/check";
   import Minus from "@lucide/svelte/icons/minus";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import FolderSearch from "@lucide/svelte/icons/folder-search";
+
+  const idOf = (e: FileEntry) => e.path;
 
   let folder = $state<string | null>(null);
   let entries = $state<FileEntry[]>([]);
@@ -21,20 +25,7 @@
   let selected = $state<Record<string, boolean>>({});
   let openGroups = $state<Record<string, boolean>>({});
 
-  function dirOf(path: string): string {
-    const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-    return idx === -1 ? path : path.slice(0, idx);
-  }
-
-  let groups = $derived.by(() => {
-    const map = new Map<string, FileEntry[]>();
-    for (const entry of entries) {
-      const key = dirOf(entry.path);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(entry);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  });
+  let groups = $derived(groupByDir(entries, idOf));
 
   let selectedCount = $derived(Object.values(selected).filter(Boolean).length);
 
@@ -42,18 +33,8 @@
     return openGroups[dir] ?? true;
   }
 
-  function groupChecked(group: FileEntry[]): boolean {
-    return group.every((e) => selected[e.path]);
-  }
-
-  function groupIndeterminate(group: FileEntry[]): boolean {
-    return !groupChecked(group) && group.some((e) => selected[e.path]);
-  }
-
   function toggleGroup(group: FileEntry[], value: boolean) {
-    const next = { ...selected };
-    for (const e of group) next[e.path] = value;
-    selected = next;
+    selected = withGroupSelection(group, idOf, selected, value);
   }
 
   async function pickFolder() {
@@ -142,8 +123,8 @@
     >
       <div class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5">
         <Checkbox.Root
-          checked={groupChecked(group)}
-          indeterminate={groupIndeterminate(group)}
+          checked={isGroupChecked(group, idOf, selected)}
+          indeterminate={isGroupIndeterminate(group, idOf, selected)}
           onCheckedChange={(v) => toggleGroup(group, v === true)}
           class="chk"
         >
@@ -158,65 +139,49 @@
         </Collapsible.Trigger>
       </div>
       <Collapsible.Content>
-        <table class="w-full border-collapse text-sm">
-          <tbody>
-            {#each group as entry (entry.path)}
-              <tr class="hover:bg-[var(--color-surface-hover)]">
-                <td class="w-8 px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]">
-                  <Checkbox.Root
-                    checked={selected[entry.path]}
-                    onCheckedChange={(v) => (selected = { ...selected, [entry.path]: v === true })}
-                    class="chk"
-                  >
-                    {#snippet children({ checked })}
-                      {#if checked}<Check size={11} />{/if}
-                    {/snippet}
-                  </Checkbox.Root>
-                </td>
-                <td class="max-w-0 w-[60%] overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]" title={entry.path}>
+        <div class="text-sm" role="table">
+          <VirtualList items={group} estimateSize={37}>
+            {#snippet row(entry: FileEntry)}
+              <div
+                role="row"
+                class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
+                style="grid-template-columns: 2rem minmax(0, 60%) minmax(0, 1fr) auto;"
+              >
+                <Checkbox.Root
+                  checked={selected[entry.path]}
+                  onCheckedChange={(v) => (selected = { ...selected, [entry.path]: v === true })}
+                  class="chk"
+                >
+                  {#snippet children({ checked })}
+                    {#if checked}<Check size={11} />{/if}
+                  {/snippet}
+                </Checkbox.Root>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap" title={entry.path}>
                   {entry.file_name}
-                </td>
-                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+                </span>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]">
                   {new Date(entry.modified).toLocaleDateString()}
-                </td>
-                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-right whitespace-nowrap">
-                  {formatBytes(entry.size_bytes)}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+                </span>
+                <span class="whitespace-nowrap text-right">{formatBytes(entry.size_bytes)}</span>
+              </div>
+            {/snippet}
+          </VirtualList>
+        </div>
       </Collapsible.Content>
     </Collapsible.Root>
   {/each}
 {/if}
 
-<DeleteConfirmModal bind:open={confirmOpen} {selectedCount} onConfirm={confirmDelete} onCancel={() => (confirmOpen = false)} />
-
-<style>
-  :global(.chk) {
-    width: 16px;
-    height: 16px;
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-accent-fg);
-    padding: 0;
-    cursor: pointer;
-  }
-  :global(.chk[data-state="checked"]),
-  :global(.chk[data-state="indeterminate"]) {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-  }
-  :global(.chevron) {
-    transition: transform 120ms ease;
-  }
-  :global(.group[data-state="open"] .chevron) {
-    transform: rotate(90deg);
-  }
-</style>
+<ConfirmModal
+  bind:open={confirmOpen}
+  title="Delete {selectedCount} file{selectedCount === 1 ? '' : 's'}?"
+  confirmLabel="Delete {selectedCount} file{selectedCount === 1 ? '' : 's'}"
+  disabled={selectedCount === 0}
+  onConfirm={confirmDelete}
+  onCancel={() => (confirmOpen = false)}
+>
+  {#snippet description()}
+    Nothing is permanently deleted — these files move into a <code>.sortty-trash</code> folder
+    next to them (not the Windows Recycle Bin), and this can be undone from History afterward.
+  {/snippet}
+</ConfirmModal>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { open } from "@tauri-apps/plugin-dialog";
-  import ApplyConfirmModal from "$lib/components/ApplyConfirmModal.svelte";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import FolderPicker from "$lib/components/FolderPicker.svelte";
   import PreviewTable from "$lib/components/PreviewTable.svelte";
   import ModeSelector from "$lib/components/ModeSelector.svelte";
@@ -170,4 +170,18 @@
   {/if}
 </div>
 
-<ApplyConfirmModal bind:open={confirmOpen} {selectedCount} onConfirm={confirmApply} onCancel={() => (confirmOpen = false)} />
+<ConfirmModal
+  bind:open={confirmOpen}
+  title="Apply {selectedCount} change{selectedCount === 1 ? '' : 's'}?"
+  confirmLabel="Apply {selectedCount} change{selectedCount === 1 ? '' : 's'}"
+  disabled={selectedCount === 0}
+  onConfirm={confirmApply}
+  onCancel={() => (confirmOpen = false)}
+>
+  {#snippet description()}
+    Files will be moved to their new locations now. Nothing is permanently deleted — duplicates
+    and stale files go into a <code>.sortty-trash</code> / <code>.sortty-archive</code> folder inside
+    the scanned folder (not the Windows Recycle Bin), and this whole run can be undone from
+    History afterward.
+  {/snippet}
+</ConfirmModal>

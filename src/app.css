@@ -130,6 +130,36 @@ body {
   background-color: var(--color-text-muted);
 }
 
+/*
+ * Shared by the grouped-list checkbox/collapsible headers in PreviewTable and
+ * BrowsePanel (see also src/lib/grouping.ts for the logic these render).
+ */
+.chk {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-accent-fg);
+  padding: 0;
+  cursor: pointer;
+}
+.chk[data-state="checked"],
+.chk[data-state="indeterminate"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.chevron {
+  transition: transform 120ms ease;
+}
+.group[data-state="open"] .chevron {
+  transform: rotate(90deg);
+}
+
 @layer components {
   .card {
     @apply rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5;

@@ -1,13 +1,25 @@
 <script lang="ts">
   import { Dialog } from "bits-ui";
   import { fade, fly } from "svelte/transition";
+  import type { Snippet } from "svelte";
 
   let {
     open = $bindable(),
-    selectedCount,
+    title,
+    description,
+    confirmLabel,
+    disabled = false,
     onConfirm,
     onCancel,
-  }: { open: boolean; selectedCount: number; onConfirm: () => void; onCancel: () => void } = $props();
+  }: {
+    open: boolean;
+    title: string;
+    description: Snippet;
+    confirmLabel: string;
+    disabled?: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+  } = $props();
 </script>
 
 <Dialog.Root bind:open onOpenChange={(v) => !v && onCancel()}>
@@ -26,26 +38,14 @@
       {#snippet child({ props, open })}
         {#if open}
           <div {...props} transition:fly={{ y: 8, duration: 140 }}>
-            <Dialog.Title class="text-base font-semibold m-0">
-              Apply {selectedCount} change{selectedCount === 1 ? "" : "s"}?
-            </Dialog.Title>
+            <Dialog.Title class="text-base font-semibold m-0">{title}</Dialog.Title>
             <Dialog.Description class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
-              Files will be moved to their new locations now. Nothing is permanently deleted — duplicates
-              and stale files go into a <code>.sortty-trash</code> / <code>.sortty-archive</code> folder inside
-              the scanned folder (not the Windows Recycle Bin), and this whole run can be undone from
-              History afterward.
+              {@render description()}
             </Dialog.Description>
             <div class="mt-4 flex justify-end gap-2">
-              <button type="button" class="btn-ghost" onclick={onCancel}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="btn-primary"
-                onclick={onConfirm}
-                disabled={selectedCount === 0}
-              >
-                Apply {selectedCount} change{selectedCount === 1 ? "" : "s"}
+              <button type="button" class="btn-ghost" onclick={onCancel}> Cancel </button>
+              <button type="button" class="btn-primary" onclick={onConfirm} {disabled}>
+                {confirmLabel}
               </button>
             </div>
           </div>

@@ -4,7 +4,15 @@
   import { formatBytes } from "../format";
   import { cn } from "../cn";
   import { previewViewMode, previewScale, SCALE_PX, type ThumbScale } from "../state/previewView";
+  import {
+    fileNameOf,
+    groupByDir,
+    isGroupChecked,
+    isGroupIndeterminate,
+    withGroupSelection,
+  } from "../grouping";
   import FileThumb from "./FileThumb.svelte";
+  import VirtualList from "./VirtualList.svelte";
   import Search from "@lucide/svelte/icons/search";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Check from "@lucide/svelte/icons/check";
@@ -21,18 +29,10 @@
     ["lg", "L"],
   ];
 
+  const idOf = (op: Operation) => op.id;
+
   let query = $state("");
   let openGroups = $state<Record<string, boolean>>({});
-
-  function dirOf(path: string): string {
-    const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-    return idx === -1 ? path : path.slice(0, idx);
-  }
-
-  function fileNameOf(path: string): string {
-    const idx = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-    return idx === -1 ? path : path.slice(idx + 1);
-  }
 
   let filteredOps = $derived.by(() => {
     const q = query.trim().toLowerCase();
@@ -42,41 +42,21 @@
     );
   });
 
-  let groups = $derived.by(() => {
-    const map = new Map<string, Operation[]>();
-    for (const op of filteredOps) {
-      const key = dirOf(op.destination);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(op);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  });
+  let groups = $derived(groupByDir(filteredOps, (op) => op.destination));
 
   function isGroupOpen(dir: string): boolean {
     return openGroups[dir] ?? true;
   }
 
-  let allSelected = $derived(plan.operations.length > 0 && plan.operations.every((op) => selected[op.id]));
-  let someSelected = $derived(!allSelected && plan.operations.some((op) => selected[op.id]));
+  let allSelected = $derived(isGroupChecked(plan.operations, idOf, selected));
+  let someSelected = $derived(isGroupIndeterminate(plan.operations, idOf, selected));
 
   function toggleAll(value: boolean) {
-    const next = { ...selected };
-    for (const op of plan.operations) next[op.id] = value;
-    selected = next;
+    selected = withGroupSelection(plan.operations, idOf, selected, value);
   }
 
   function toggleGroup(ops: Operation[], value: boolean) {
-    const next = { ...selected };
-    for (const op of ops) next[op.id] = value;
-    selected = next;
-  }
-
-  function groupChecked(ops: Operation[]): boolean {
-    return ops.every((op) => selected[op.id]);
-  }
-
-  function groupIndeterminate(ops: Operation[]): boolean {
-    return !groupChecked(ops) && ops.some((op) => selected[op.id]);
+    selected = withGroupSelection(ops, idOf, selected, value);
   }
 </script>
 
@@ -165,8 +145,8 @@
   >
     <div class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5">
       <Checkbox.Root
-        checked={groupChecked(ops)}
-        indeterminate={groupIndeterminate(ops)}
+        checked={isGroupChecked(ops, idOf, selected)}
+        indeterminate={isGroupIndeterminate(ops, idOf, selected)}
         onCheckedChange={(v) => toggleGroup(ops, v === true)}
         class="chk"
       >
@@ -182,34 +162,34 @@
     </div>
     <Collapsible.Content>
       {#if $previewViewMode === "list"}
-        <table class="w-full border-collapse text-sm">
-          <tbody>
-            {#each ops as op (op.id)}
-              <tr class="hover:bg-[var(--color-surface-hover)]">
-                <td class="w-8 px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]">
-                  <Checkbox.Root
-                    checked={selected[op.id]}
-                    onCheckedChange={(v) => (selected = { ...selected, [op.id]: v === true })}
-                    class="chk"
-                  >
-                    {#snippet children({ checked })}
-                      {#if checked}<Check size={11} />{/if}
-                    {/snippet}
-                  </Checkbox.Root>
-                </td>
-                <td class="max-w-0 w-[55%] overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-1.5 border-t border-[var(--color-border-subtle)]" title={op.source}>
+        <div class="text-sm" role="table">
+          <VirtualList items={ops} estimateSize={37}>
+            {#snippet row(op: Operation)}
+              <div
+                role="row"
+                class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
+                style="grid-template-columns: 2rem minmax(0, 55%) minmax(0, 1fr) auto;"
+              >
+                <Checkbox.Root
+                  checked={selected[op.id]}
+                  onCheckedChange={(v) => (selected = { ...selected, [op.id]: v === true })}
+                  class="chk"
+                >
+                  {#snippet children({ checked })}
+                    {#if checked}<Check size={11} />{/if}
+                  {/snippet}
+                </Checkbox.Root>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap" title={op.source}>
                   {op.source}
-                </td>
-                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+                </span>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]">
                   {op.reason}
-                </td>
-                <td class="px-2.5 py-1.5 border-t border-[var(--color-border-subtle)] text-right whitespace-nowrap">
-                  {formatBytes(op.size_bytes)}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+                </span>
+                <span class="whitespace-nowrap text-right">{formatBytes(op.size_bytes)}</span>
+              </div>
+            {/snippet}
+          </VirtualList>
+        </div>
       {:else}
         <div
           class="grid gap-3 p-3 border-t border-[var(--color-border-subtle)]"
@@ -237,31 +217,3 @@
     </Collapsible.Content>
   </Collapsible.Root>
 {/each}
-
-<style>
-  :global(.chk) {
-    width: 16px;
-    height: 16px;
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-accent-fg);
-    padding: 0;
-    cursor: pointer;
-  }
-  :global(.chk[data-state="checked"]),
-  :global(.chk[data-state="indeterminate"]) {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-  }
-  :global(.chevron) {
-    transition: transform 120ms ease;
-  }
-  :global(.group[data-state="open"] .chevron) {
-    transform: rotate(90deg);
-  }
-</style>
