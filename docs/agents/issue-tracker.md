@@ -44,6 +44,6 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
 
-## Note: no remote configured yet
+## Remote
 
-This repo has no git remote configured yet (it isn't even initialized as a git repository, as of 2026-09-23). The `gh` conventions above assume `git remote -v` resolves to a GitHub repo — once sortty is pushed to GitHub, they'll work as documented. Until then, skills needing the issue tracker should flag that no remote is configured rather than failing silently.
+[mikotorz/sortty](https://github.com/mikotorz/sortty) (private), pushed 2026-09-23. `gh` resolves this automatically via `git remote -v` when run inside this checkout.
