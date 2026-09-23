@@ -1,5 +1,6 @@
 use crate::domain::run::{RunRecord, UndoResult};
 use crate::error::AppError;
+use crate::fsutil::move_no_clobber;
 
 /// Reverses a run's applied operations (`to -> from`), most recent first.
 /// A destination that's occupied again (something new landed there since the
@@ -20,24 +21,14 @@ pub fn undo(record: &RunRecord) -> Result<UndoResult, AppError> {
             continue;
         }
 
-        if let Some(parent) = applied.from.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| AppError::io(parent.to_path_buf(), e))?;
-        }
-
-        match std::fs::rename(&applied.to, &applied.from) {
+        match move_no_clobber(&applied.to, &applied.from) {
             Ok(()) => restored += 1,
-            Err(_) => {
-                // Fall back to copy + remove for cross-volume moves.
-                match std::fs::copy(&applied.to, &applied.from)
-                    .and_then(|_| std::fs::remove_file(&applied.to))
-                {
-                    Ok(()) => restored += 1,
-                    Err(_) => conflicts.push(applied.clone()),
-                }
+            Err(e) => {
+                log::warn!("sortty: couldn't restore {}: {e}", applied.from.display());
+                conflicts.push(applied.clone());
             }
         }
     }
-
     Ok(UndoResult {
         restored,
         conflicts,

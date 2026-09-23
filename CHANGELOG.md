@@ -7,6 +7,7 @@ Notable changes to sortty, newest first. This is the primary place to catch up o
 A full review of the codebase before the move to Opus turned up bugs that could undo the app's core promise (nothing is ever lost, nothing leaves the folder you picked). This pass fixes them.
 
 - **Fixed: files in the trash could be sorted back out of it.** With "Include files in subfolders too" on, a scan also looked inside `.sortty-trash` and `.sortty-archive`, so Sort by Type moved duplicates you had set aside back into `Images/`, `Documents/` and so on. The trash and archive folders (including renamed ones, and the old default names) are now always skipped, whatever the scan options say. See [ADR 0017](docs/adr/0017-staging-folders-and-no-clobber-moves.md).
+- **Fixed: a file open in another program could end up in two places.** Moving it failed, but sortty then copied it to the destination anyway and left that copy behind, where Undo couldn't see it. Moves now either happen completely or leave everything as it was, and they can never overwrite an existing file. Undo uses the same safe move. See [ADR 0017](docs/adr/0017-staging-folders-and-no-clobber-moves.md).
 
 ## 2026-09-24 — The whole page scrolls again
 

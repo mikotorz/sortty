@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::domain::plan::Plan;
 use crate::domain::run::{AppliedOperation, FailedOperation, RunRecord};
-use crate::error::AppError;
+use crate::fsutil::move_no_clobber;
 
 /// If `destination` already exists, append " (1)", " (2)", ... before the
 /// extension until a free path is found.
@@ -33,21 +33,6 @@ fn resolve_collision(destination: &Path) -> PathBuf {
             return candidate;
         }
         n += 1;
-    }
-}
-
-fn move_file(from: &Path, to: &Path) -> Result<(), AppError> {
-    if let Some(parent) = to.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| AppError::io(parent.to_path_buf(), e))?;
-    }
-    match std::fs::rename(from, to) {
-        Ok(()) => Ok(()),
-        // rename fails across drives/volumes; fall back to copy + remove.
-        Err(_) => {
-            std::fs::copy(from, to).map_err(|e| AppError::io(from.to_path_buf(), e))?;
-            std::fs::remove_file(from).map_err(|e| AppError::io(from.to_path_buf(), e))?;
-            Ok(())
-        }
     }
 }
 
@@ -87,7 +72,7 @@ pub fn apply_with_progress(
         }
 
         let final_destination = resolve_collision(&op.destination);
-        match move_file(&op.source, &final_destination) {
+        match move_no_clobber(&op.source, &final_destination) {
             Ok(()) => applied.push(AppliedOperation {
                 id: op.id.clone(),
                 kind: op.kind,
