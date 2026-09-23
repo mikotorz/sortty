@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
@@ -12,6 +13,30 @@ use crate::engine::scanner::{self, ScanOptions};
 use crate::engine::sort_by_date::{self, DateGranularity, DateSource, SortByDateOptions};
 use crate::engine::sort_by_type;
 use crate::error::AppError;
+
+/// The plan the user is currently previewing, kept in the backend so
+/// `apply_plan` can look it up by id instead of accepting whatever `Plan`
+/// the webview sends back (ADR 0016). Holds only the latest plan: a new scan
+/// replaces it, and applying it takes it out.
+#[derive(Clone, Default)]
+pub struct PlanStore(Arc<Mutex<Option<Plan>>>);
+
+impl PlanStore {
+    pub fn put(&self, plan: Plan) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(plan);
+    }
+
+    /// Removes and returns the stored plan if its id is `plan_id`.
+    pub fn take(&self, plan_id: &str) -> Result<Plan, AppError> {
+        let mut slot = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        match slot.as_ref() {
+            Some(plan) if plan.id == plan_id => Ok(slot.take().expect("checked above")),
+            _ => Err(AppError::InvalidPlan(
+                "this preview is out of date — scan again, then apply".to_string(),
+            )),
+        }
+    }
+}
 
 /// A running "N scanned so far" count — there's no total, since `scan`'s
 /// underlying walk is a lazy single-pass iterator that doesn't know the file
@@ -116,6 +141,7 @@ pub fn generate_plan_at(
 pub async fn generate_plan(
     app: AppHandle,
     cancel_flag: State<'_, CancelFlag>,
+    plan_store: State<'_, PlanStore>,
     root: String,
     scan_options: Option<ScanOptions>,
     request: PlanRequest,
@@ -128,7 +154,7 @@ pub async fn generate_plan(
         .map_err(|e| AppError::Other(e.to_string()))?;
 
     let mut last_sent = 0usize;
-    generate_plan_at(
+    let plan = generate_plan_at(
         &PathBuf::from(root),
         scan_options.unwrap_or_default(),
         request,
@@ -140,7 +166,11 @@ pub async fn generate_plan(
             }
         },
         || cancel_flag.is_cancelled(),
-    )
+    )?;
+    if let Some(plan) = &plan {
+        plan_store.put(plan.clone());
+    }
+    Ok(plan)
 }
 
 #[cfg(test)]

@@ -40,8 +40,10 @@ export function generatePlan(
   });
 }
 
+/** Applies the plan the backend is holding for `planId` (the id of the plan
+ * last returned by `generatePlan`) — the plan itself is never sent back. */
 export function applyPlan(
-  plan: Plan,
+  planId: string,
   selectedIds: string[],
   onProgress?: (completed: number, total: number) => void,
 ): Promise<RunRecord> {
@@ -50,7 +52,7 @@ export function applyPlan(
     channel.onmessage = (message) =>
       onProgress(message.completed, message.total);
   }
-  return invoke("apply_plan", { plan, selectedIds, onProgress: channel });
+  return invoke("apply_plan", { planId, selectedIds, onProgress: channel });
 }
 
 export function cancelCurrentOperation(): Promise<void> {

@@ -108,7 +108,7 @@
         .filter(([, v]) => v)
         .map(([id]) => id);
       const run = await applyPlan(
-        scanSession.plan,
+        scanSession.plan.id,
         ids,
         (completed, total) =>
           (scanSession.applyProgress = { completed, total }),

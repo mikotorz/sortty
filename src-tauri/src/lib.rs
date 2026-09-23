@@ -26,6 +26,7 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(commands::cancel::CancelFlag::default())
+        .manage(commands::plan::PlanStore::default())
         .invoke_handler(tauri::generate_handler![
             commands::scan::scan_folder,
             commands::plan::generate_plan,

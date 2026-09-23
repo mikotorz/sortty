@@ -52,12 +52,11 @@ describe("commands.ts", () => {
     });
   });
 
-  it("applyPlan invokes apply_plan with plan, selectedIds, and a progress channel", async () => {
+  it("applyPlan invokes apply_plan with the plan id, selectedIds, and a progress channel", async () => {
     mockedInvoke.mockResolvedValueOnce({});
-    const plan = { id: "p1" } as unknown as Plan;
-    await applyPlan(plan, ["op-1", "op-2"]);
+    await applyPlan("p1", ["op-1", "op-2"]);
     expect(mockedInvoke).toHaveBeenCalledWith("apply_plan", {
-      plan,
+      planId: "p1",
       selectedIds: ["op-1", "op-2"],
       onProgress: expect.any(Channel),
     });

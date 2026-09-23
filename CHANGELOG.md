@@ -2,6 +2,12 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Review follow-up: sturdier internals
+
+The second half of the pre-Opus review: nothing new to click, but safer and faster underneath.
+
+- **The app now holds on to the plan you're previewing.** Before, the whole plan was sent back from the window to be applied, so in principle the window could ask for any file to be moved anywhere. Now Apply only says which of the planned changes to run. It's also less work for very large folders. See [ADR 0016](docs/adr/0016-backend-owned-plans.md).
+
 ## 2026-09-24 — Review fixes: trash safety, undo, dates, settings
 
 A full review of the codebase before the move to Opus turned up bugs that could undo the app's core promise (nothing is ever lost, nothing leaves the folder you picked). This pass fixes them.
