@@ -1,4 +1,10 @@
-import type { Plan, PlanRequest, RunRecord, ScanOptions } from "../api/types";
+import type {
+  Plan,
+  PlanProgress,
+  PlanRequest,
+  RunRecord,
+  ScanOptions,
+} from "../api/types";
 
 /**
  * Sort & Clean's in-progress scan/plan state, lifted out of the page component
@@ -15,7 +21,7 @@ class ScanSession {
   selected = $state<Record<string, boolean>>({});
   scanning = $state(false);
   applying = $state(false);
-  scanProgress = $state<number | null>(null);
+  scanProgress = $state<PlanProgress | null>(null);
   applyProgress = $state<{ completed: number; total: number } | null>(null);
   lastRun = $state<RunRecord | null>(null);
   showFailures = $state(false);

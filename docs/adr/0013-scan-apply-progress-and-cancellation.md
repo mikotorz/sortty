@@ -23,3 +23,14 @@ Scanning or applying a plan over a large folder blocked the UI with no feedback 
 - Two new, slightly duplicated `_with_progress` functions exist alongside `scan`/`apply` rather than one function with optional callbacks — accepted, since it keeps the always-used no-progress path (all existing tests) completely unchanged.
 - `RunRecord`/`RunSummary` gained a `cancelled: bool` field (`#[serde(default)]`, so runs persisted before this existed still deserialize) — History now distinguishes a cancelled run from a run that simply failed partway or had nothing to do.
 - A scan can only report "N scanned so far," never "N of M" — `WalkDir`'s underlying walk is a lazy single-pass iterator with no upfront total. Apply, whose operation count is fixed ahead of time, gets a real "N of M" / determinate progress bar; scan gets an indeterminate spinner with a running count.
+
+## Amendment (2026-09-24): progress and cancel for Find Duplicates' hashing
+
+Hashing was the slowest part of Find Duplicates, and it reported nothing and ignored Cancel. The scan-progress event is now a tagged `PlanProgress`:
+
+- `scanning { count }` while walking the folder, as before;
+- `checking { done, total }` and `comparing { done, total }` for the two hashing passes. Unlike the walk, these know their total up front, so they show "N/M".
+
+Dedup also now narrows candidates in three passes: same size, then the same first 64 KiB, then a full hash, and only for files bigger than 64 KiB whose first 64 KiB matched. Most same-size non-duplicates are ruled out after reading 64 KiB instead of the whole file. Cancel is checked before each file is hashed. A cancelled dedup returns no plan, just like a cancelled scan.
+
+Progress is throttled without shared state, so it works from rayon's worker threads: every 50th scanned entry, every 20th hashed file, and the last file of each pass.

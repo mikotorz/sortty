@@ -9,6 +9,7 @@
     cancelCurrentOperation,
     generatePlan,
   } from "$lib/api/commands";
+  import type { PlanProgress } from "$lib/api/types";
   import { formatBytes } from "$lib/format";
   import { pushToast } from "$lib/state/toast";
   import { appSettings, selectedRoot } from "$lib/state/stores";
@@ -65,20 +66,33 @@
       : 0,
   );
 
+  function scanLabel(progress: PlanProgress | null): string {
+    switch (progress?.phase) {
+      case undefined:
+        return "Scanning…";
+      case "scanning":
+        return `Scanning… (${progress.count} found)`;
+      case "checking":
+        return `Checking for duplicates… (${progress.done}/${progress.total})`;
+      case "comparing":
+        return `Comparing possible duplicates… (${progress.done}/${progress.total})`;
+    }
+  }
+
   async function scan() {
     if (!$selectedRoot) {
       pushToast("error", "Choose a folder first.");
       return;
     }
     scanSession.scanning = true;
-    scanSession.scanProgress = 0;
+    scanSession.scanProgress = null;
     scanSession.lastRun = null;
     try {
       const plan = await generatePlan(
         $selectedRoot,
         scanSession.request,
         scanSession.scanOptions,
-        (count) => (scanSession.scanProgress = count),
+        (progress) => (scanSession.scanProgress = progress),
       );
       if (plan === null) {
         pushToast("info", "Scan cancelled.");
@@ -199,9 +213,7 @@
             size={15}
             class="animate-spin"
           />{/if}
-        {scanSession.scanning
-          ? `Scanning… (${scanSession.scanProgress ?? 0} found)`
-          : "Scan"}
+        {scanSession.scanning ? scanLabel(scanSession.scanProgress) : "Scan"}
       </button>
       {#if scanSession.scanning}
         <button

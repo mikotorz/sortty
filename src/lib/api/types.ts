@@ -27,6 +27,13 @@ export interface ScanResult {
   scanned_at: string;
 }
 
+/** Progress while building a plan. `checking`/`comparing` are Find
+ * Duplicates' two hashing passes (first 64 KiB, then full contents). */
+export type PlanProgress =
+  | { phase: "scanning"; count: number }
+  | { phase: "checking"; done: number; total: number }
+  | { phase: "comparing"; done: number; total: number };
+
 export interface Operation {
   id: string;
   kind: OperationKind;

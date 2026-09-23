@@ -5,6 +5,7 @@ import type {
   EmptyResult,
   FileEntry,
   Plan,
+  PlanProgress,
   PlanRequest,
   RunRecord,
   RunSummary,
@@ -26,11 +27,11 @@ export function generatePlan(
   root: string,
   request: PlanRequest,
   scanOptions?: ScanOptions,
-  onProgress?: (count: number) => void,
+  onProgress?: (progress: PlanProgress) => void,
 ): Promise<Plan | null> {
-  const channel = new Channel<{ count: number }>();
+  const channel = new Channel<PlanProgress>();
   if (onProgress) {
-    channel.onmessage = (message) => onProgress(message.count);
+    channel.onmessage = onProgress;
   }
   return invoke("generate_plan", {
     root,

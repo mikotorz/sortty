@@ -9,7 +9,7 @@ use crate::commands::cancel::CancelFlag;
 use crate::config::settings;
 use crate::domain::plan::Plan;
 use crate::engine::cleanup::{self, CleanupOptions, StaleAction};
-use crate::engine::dedup::{self, DedupOptions, KeepStrategy};
+use crate::engine::dedup::{self, DedupOptions, HashStage, KeepStrategy};
 use crate::engine::scanner::{self, ScanOptions};
 use crate::engine::sort_by_date::{self, DateGranularity, DateSource, SortByDateOptions};
 use crate::engine::sort_by_type;
@@ -39,12 +39,30 @@ impl PlanStore {
     }
 }
 
-/// A running "N scanned so far" count — there's no total, since `scan`'s
-/// underlying walk is a lazy single-pass iterator that doesn't know the file
-/// count ahead of time.
-#[derive(Clone, Serialize)]
-pub struct ScanProgress {
-    pub count: usize,
+/// Progress while building a plan, tagged by phase for the frontend:
+/// `{ phase: "scanning", count }` while walking the folder (no total — the
+/// walk is a lazy single-pass iterator that doesn't know the file count
+/// ahead of time), then, for Find Duplicates only, `checking` and
+/// `comparing` with a real `done`/`total` for the two hashing passes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "phase", rename_all = "snake_case")]
+pub enum PlanProgress {
+    Scanning { count: usize },
+    Checking { done: usize, total: usize },
+    Comparing { done: usize, total: usize },
+}
+
+impl PlanProgress {
+    /// Whether this report is worth sending over IPC: every 50th scanned
+    /// entry, every 20th hashed file, and the last one of each hashing pass.
+    fn worth_sending(&self) -> bool {
+        match *self {
+            PlanProgress::Scanning { count } => count % 50 == 0,
+            PlanProgress::Checking { done, total } | PlanProgress::Comparing { done, total } => {
+                done % 20 == 0 || done == total
+            }
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -75,13 +93,18 @@ pub fn generate_plan_at(
     scan_options: ScanOptions,
     request: PlanRequest,
     config_dir: &Path,
-    on_progress: impl FnMut(usize),
-    should_cancel: impl Fn() -> bool,
+    on_progress: &(dyn Fn(PlanProgress) + Sync),
+    should_cancel: &(dyn Fn() -> bool + Sync),
 ) -> Result<Option<Plan>, AppError> {
     let app_settings = settings::load_settings(config_dir)?;
     let scan_options = scan_options.excluding(app_settings.trash.staging_folder_names());
 
-    let outcome = scanner::scan_with_progress(root, &scan_options, on_progress, should_cancel)?;
+    let outcome = scanner::scan_with_progress(
+        root,
+        &scan_options,
+        |count| on_progress(PlanProgress::Scanning { count }),
+        should_cancel,
+    )?;
     if outcome.cancelled {
         return Ok(None);
     }
@@ -106,15 +129,28 @@ pub fn generate_plan_at(
         PlanRequest::Dedup {
             min_size_bytes,
             keep_strategy,
-        } => dedup::build_plan(
-            root,
-            &entries,
-            &DedupOptions {
-                min_size_bytes,
-                keep_strategy,
-                trash_folder_name: app_settings.trash.staging_folder_name,
-            },
-        )?,
+        } => {
+            let plan = dedup::build_plan_with_progress(
+                root,
+                &entries,
+                &DedupOptions {
+                    min_size_bytes,
+                    keep_strategy,
+                    trash_folder_name: app_settings.trash.staging_folder_name,
+                },
+                &|stage, done, total| {
+                    on_progress(match stage {
+                        HashStage::Checking => PlanProgress::Checking { done, total },
+                        HashStage::Comparing => PlanProgress::Comparing { done, total },
+                    })
+                },
+                should_cancel,
+            );
+            match plan {
+                Some(plan) => plan,
+                None => return Ok(None),
+            }
+        }
         PlanRequest::Cleanup {
             stale_days,
             date_source,
@@ -146,7 +182,7 @@ pub async fn generate_plan(
     root: String,
     scan_options: Option<ScanOptions>,
     request: PlanRequest,
-    on_progress: Channel<ScanProgress>,
+    on_progress: Channel<PlanProgress>,
 ) -> Result<Option<Plan>, AppError> {
     cancel_flag.reset();
     let config_dir = app
@@ -157,19 +193,17 @@ pub async fn generate_plan(
     let cancel_flag = cancel_flag.inner().clone();
     let plan_store = plan_store.inner().clone();
     blocking(move || {
-        let mut last_sent = 0usize;
         let plan = generate_plan_at(
             &PathBuf::from(root),
             scan_options.unwrap_or_default(),
             request,
             &config_dir,
-            |count| {
-                if count - last_sent >= 50 {
-                    on_progress.send(ScanProgress { count }).ok();
-                    last_sent = count;
+            &|progress| {
+                if progress.worth_sending() {
+                    on_progress.send(progress).ok();
                 }
             },
-            || cancel_flag.is_cancelled(),
+            &|| cancel_flag.is_cancelled(),
         )?;
         if let Some(plan) = &plan {
             plan_store.put(plan.clone());
@@ -210,8 +244,8 @@ mod tests {
             recursive_with_empty_exclude(),
             PlanRequest::SortByType,
             config.path(),
-            |_| {},
-            || false,
+            &|_| {},
+            &|| false,
         )
         .unwrap()
         .unwrap();
@@ -239,8 +273,8 @@ mod tests {
             recursive_with_empty_exclude(),
             PlanRequest::SortByType,
             config.path(),
-            |_| {},
-            || false,
+            &|_| {},
+            &|| false,
         )
         .unwrap()
         .unwrap();
