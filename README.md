@@ -11,7 +11,7 @@ Point it at a folder and pick a mode:
 - **Find duplicates** — detect files with identical content (by hash) and move the extras aside.
 - **Clean up stale files** — archive files that haven't been touched in a configurable number of days.
 
-Every mode always shows a **dry-run preview** first — nothing moves until you review and confirm. "Deleting" a duplicate or stale file never really deletes it: it's moved into a `.sortty-trash` / `.sortty-archive` folder inside the scanned folder, and the whole run can be undone from the History tab. Scanning and applying report live progress and can be cancelled mid-flight.
+Every mode always shows a **dry-run preview** first — nothing moves until you review and confirm. "Deleting" a duplicate or stale file never really deletes it: it's moved into a `.sortty-trash` / `.sortty-archive` folder inside the scanned folder, and the whole run can be undone, either straight away from the result box or later from the History tab, where each run also shows what moved where. Scanning (including Find Duplicates' comparison step) and applying report live progress and can be cancelled mid-flight.
 
 The preview can be filtered by path, and viewed either as a list or as a thumbnail grid (with a small/medium/large size control) — image files show a real thumbnail, everything else shows a file-type icon. Both views only render the rows/tiles near the viewport, so a folder with thousands of files stays responsive. The app also remembers your last chosen folder and mode across restarts.
 

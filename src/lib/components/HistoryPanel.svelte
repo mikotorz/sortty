@@ -1,17 +1,18 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getRun, listRuns, undoRun } from "../api/commands";
-  import type { FailedOperation, RunSummary } from "../api/types";
+  import type { RunRecord, RunSummary } from "../api/types";
   import { pushToast } from "../state/toast";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import History from "@lucide/svelte/icons/history";
+  import RunDetails from "./RunDetails.svelte";
 
   let runs = $state<RunSummary[]>([]);
   let loading = $state(true);
   let undoingId = $state<string | null>(null);
-  let expandedFailures = $state<Record<string, FailedOperation[]>>({});
-  let loadingFailuresFor = $state<string | null>(null);
+  let expanded = $state<Record<string, RunRecord>>({});
+  let loadingDetailsFor = $state<string | null>(null);
 
   onMount(load);
 
@@ -45,6 +46,9 @@
           : `Restored ${result.restored} file(s).`,
       );
       await load();
+      if (expanded[runId]) {
+        expanded = { ...expanded, [runId]: await getRun(runId) };
+      }
     } catch (e) {
       pushToast("error", `Undo failed: ${e}`);
     } finally {
@@ -52,23 +56,20 @@
     }
   }
 
-  async function toggleFailures(runId: string) {
-    if (expandedFailures[runId]) {
-      const { [runId]: _removed, ...rest } = expandedFailures;
-      expandedFailures = rest;
+  /** Shows or hides what a run did (every file moved, and any failures). */
+  async function toggleDetails(runId: string) {
+    if (expanded[runId]) {
+      const { [runId]: _removed, ...rest } = expanded;
+      expanded = rest;
       return;
     }
-    loadingFailuresFor = runId;
+    loadingDetailsFor = runId;
     try {
-      const record = await getRun(runId);
-      expandedFailures = {
-        ...expandedFailures,
-        [runId]: record.failed_operations,
-      };
+      expanded = { ...expanded, [runId]: await getRun(runId) };
     } catch (e) {
-      pushToast("error", `Couldn't load failure details: ${e}`);
+      pushToast("error", `Couldn't load run details: ${e}`);
     } finally {
-      loadingFailuresFor = null;
+      loadingDetailsFor = null;
     }
   }
 </script>
@@ -95,7 +96,8 @@
         <th class="px-2.5 py-1.5 font-medium">Folder</th>
         <th class="px-2.5 py-1.5 font-medium">Applied</th>
         <th class="px-2.5 py-1.5 font-medium">Failed</th>
-        <th class="px-2.5 py-1.5"></th>
+        <th class="px-2.5 py-1.5"><span class="sr-only">Details</span></th>
+        <th class="px-2.5 py-1.5"><span class="sr-only">Undo</span></th>
       </tr>
     </thead>
     <tbody>
@@ -116,25 +118,26 @@
           <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
             >{run.applied_count}</td
           >
+          <td class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
+            >{run.failed_count}</td
+          >
           <td
             class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
           >
-            <span class="inline-flex items-center gap-1">
-              {run.failed_count}
-              {#if run.failed_count > 0}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-0.5 text-xs text-[var(--color-text-muted)] underline"
-                  onclick={() => toggleFailures(run.run_id)}
-                >
-                  {loadingFailuresFor === run.run_id ? "…" : "why?"}
-                  <ChevronDown
-                    size={12}
-                    class={expandedFailures[run.run_id] ? "rotate-180" : ""}
-                  />
-                </button>
-              {/if}
-            </span>
+            {#if run.applied_count + run.failed_count > 0}
+              <button
+                type="button"
+                class="inline-flex items-center gap-0.5 text-xs text-[var(--color-text-muted)] underline"
+                aria-expanded={!!expanded[run.run_id]}
+                onclick={() => toggleDetails(run.run_id)}
+              >
+                {loadingDetailsFor === run.run_id ? "…" : "Details"}
+                <ChevronDown
+                  size={12}
+                  class={expanded[run.run_id] ? "rotate-180" : ""}
+                />
+              </button>
+            {/if}
           </td>
           <td
             class="border-t border-[var(--color-border-subtle)] px-2.5 py-1.5"
@@ -176,14 +179,10 @@
             {/if}
           </td>
         </tr>
-        {#if expandedFailures[run.run_id]}
+        {#if expanded[run.run_id]}
           <tr>
-            <td colspan="6" class="px-2.5 pb-2">
-              <ul class="m-0 pl-4 text-xs text-[var(--color-text-muted)]">
-                {#each expandedFailures[run.run_id] as f (f.operation.id)}
-                  <li><code>{f.operation.source}</code> — {f.error}</li>
-                {/each}
-              </ul>
+            <td colspan="7" class="px-2.5 pb-2">
+              <RunDetails record={expanded[run.run_id]} />
             </td>
           </tr>
         {/if}

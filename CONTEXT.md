@@ -38,4 +38,4 @@ Two defaults exist specifically because organizing tools are high blast-radius b
 - Rust logic that turns a scan into a `Plan`: `src-tauri/src/engine/` (one file per mode).
 - Rust logic that turns a `Plan` into filesystem changes: `src-tauri/src/apply/` (`executor.rs` applies, `undo.rs` reverses, `store.rs` persists runs).
 - User-editable config (category → extension rules, stale-file threshold, trash/archive folder names): `src-tauri/src/config/settings.rs`, stored as TOML in the OS app-config directory.
-- Frontend: `src/lib/components/` (one component per screen concern: `PreviewTable`, `ApplyConfirmModal`, `SettingsPanel`, `HistoryPanel`, `BrowsePanel`), talking to the Rust backend only through `src/lib/api/commands.ts`.
+- Frontend: `src/lib/components/` (one component per screen concern: `PreviewTable`, `ConfirmModal`, `SettingsPanel`, `HistoryPanel` + `RunDetails`, `BrowsePanel`), talking to the Rust backend only through `src/lib/api/commands.ts`.
