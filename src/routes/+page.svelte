@@ -7,6 +7,7 @@
   import ModeSelector from "$lib/components/ModeSelector.svelte";
   import {
     applyPlan,
+    chooseKeeper,
     cancelCurrentOperation,
     generatePlan,
     undoRun,
@@ -152,6 +153,40 @@
       pushToast("error", `Undo failed: ${errorMessage(e)}`);
     } finally {
       undoingLastRun = false;
+    }
+  }
+
+  let choosingKeeper = $state(false);
+
+  /** Find Duplicates: keep this copy instead of its set's current keeper.
+   * The backend edits its stored plan and returns it; the old keeper comes
+   * back as a new, selected copy. */
+  async function chooseKeeperFor(operationId: string) {
+    const plan = scanSession.plan;
+    if (!plan) return;
+    choosingKeeper = true;
+    try {
+      const edited = await chooseKeeper(plan.id, operationId);
+      const next: Record<string, boolean> = {};
+      for (const op of edited.operations) {
+        next[op.id] = scanSession.selected[op.id] ?? true;
+      }
+      scanSession.plan = edited;
+      scanSession.selected = next;
+    } catch (e) {
+      if (errorKind(e) === "invalid_plan") {
+        pushToast("error", errorMessage(e), 10000, {
+          label: "Scan again",
+          run: () => void scan(),
+        });
+      } else {
+        pushToast(
+          "error",
+          `Couldn't change which copy to keep: ${errorMessage(e)}`,
+        );
+      }
+    } finally {
+      choosingKeeper = false;
     }
   }
 
@@ -384,6 +419,8 @@
       <PreviewTable
         plan={scanSession.plan}
         bind:selected={scanSession.selected}
+        onChooseKeeper={chooseKeeperFor}
+        {choosingKeeper}
       />
     </div>
   {/if}

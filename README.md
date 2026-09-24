@@ -8,7 +8,7 @@ Point it at a folder and pick a mode:
 
 - **Sort by type** — group loose files into `Images/`, `Documents/`, `Videos/`, etc. based on extension (configurable in Settings).
 - **Sort by date** — group loose files into `YYYY/MM` (or `YYYY`) folders based on modified/created date.
-- **Find duplicates** — detect files with identical content (by hash) and move the extras aside.
+- **Find duplicates** — detect files with identical content (by hash) and move the extras aside. The preview groups each set of identical files, and you can pick which copy to keep (**Keep this one**).
 - **Clean up stale files** — archive files that haven't been touched in a configurable number of days.
 
 Every mode always shows a **dry-run preview** first — nothing moves until you review and confirm. "Deleting" a duplicate or stale file never really deletes it: it's moved into a `.sortty-trash` / `.sortty-archive` folder inside the scanned folder, and the whole run can be undone, either straight away from the result box or later from the History tab, where each run also shows what moved where. History keeps runs for 90 days by default (never fewer than the newest 200), configurable in Settings. Scanning (including Find Duplicates' comparison step) and applying report live progress and can be cancelled mid-flight.

@@ -22,4 +22,4 @@ It was also wasteful. A plan for a folder with tens of thousands of files was se
 - The webview can now only choose _which_ of the backend's planned operations run (`selected_ids`), not what they do.
 - Plans live only in memory. After an app restart the preview on screen is gone anyway, because the scan session isn't persisted, so nothing is lost.
 - Browse delete (`delete_files`) still builds its plan from paths the webview picked. That is inherent, since the user is choosing arbitrary files. Instead it validates that every path is inside the browsed folder and that the folder isn't protected ([ADR 0006](0006-browse-delete-reuses-move-to-trash.md) amendment).
-- This makes future plan edits possible on the backend, such as choosing which duplicate to keep: a command can modify the stored plan by id.
+- This makes future plan edits possible on the backend, such as choosing which duplicate to keep: a command can modify the stored plan by id. (Done in [ADR 0021](0021-editing-the-stored-plan.md): `choose_keeper` edits the stored plan through `PlanStore::update`, and the plan keeps its id.)

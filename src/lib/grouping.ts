@@ -63,3 +63,24 @@ export function withGroupSelection<T>(
   for (const item of group) next[idOf(item)] = value;
   return next;
 }
+
+/**
+ * Find Duplicates: groups copies by the duplicate set they belong to, in
+ * the order of `sets` (sorted by keeper path on the backend). Sets with no
+ * matching copies (e.g. hidden by a filter) are left out.
+ */
+export function groupByDuplicateSet<
+  S extends { id: string },
+  T extends { duplicate_set?: string },
+>(sets: S[], copies: T[]): { set: S; copies: T[] }[] {
+  const bySet = new Map<string, T[]>();
+  for (const copy of copies) {
+    if (!copy.duplicate_set) continue;
+    const group = bySet.get(copy.duplicate_set);
+    if (group) group.push(copy);
+    else bySet.set(copy.duplicate_set, [copy]);
+  }
+  return sets
+    .filter((set) => bySet.has(set.id))
+    .map((set) => ({ set, copies: bySet.get(set.id)! }));
+}

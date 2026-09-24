@@ -4,6 +4,7 @@ import {
   applyPlan,
   browseFolder,
   cancelCurrentOperation,
+  chooseKeeper,
   deleteFiles,
   generatePlan,
   getRun,
@@ -46,6 +47,15 @@ describe("commands.ts", () => {
       planId: "p1",
       selectedIds: ["op-1", "op-2"],
       onProgress: expect.any(Channel),
+    });
+  });
+
+  it("chooseKeeper invokes choose_keeper with the plan id and operation id", async () => {
+    mockedInvoke.mockResolvedValueOnce({} as Plan);
+    await chooseKeeper("p1", "op-2");
+    expect(mockedInvoke).toHaveBeenCalledWith("choose_keeper", {
+      planId: "p1",
+      operationId: "op-2",
     });
   });
 

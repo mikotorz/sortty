@@ -11,8 +11,10 @@
     type ThumbScale,
   } from "../state/previewView";
   import {
+    dirOf,
     fileNameOf,
     groupByDir,
+    groupByDuplicateSet,
     isGroupChecked,
     isGroupIndeterminate,
     withGroupSelection,
@@ -31,7 +33,15 @@
   let {
     plan,
     selected = $bindable(),
-  }: { plan: Plan; selected: Record<string, boolean> } = $props();
+    onChooseKeeper,
+    choosingKeeper = false,
+  }: {
+    plan: Plan;
+    selected: Record<string, boolean>;
+    /** Find Duplicates: keep this copy instead of its set's keeper. */
+    onChooseKeeper?: (operationId: string) => void;
+    choosingKeeper?: boolean;
+  } = $props();
 
   const SCALE_OPTIONS: [ThumbScale, string][] = [
     ["sm", "S"],
@@ -56,7 +66,36 @@
     );
   });
 
-  let groups = $derived(groupByDir(filteredOps, (op) => op.destination));
+  interface Group {
+    key: string;
+    /** The destination folder, or for Find Duplicates the kept file. */
+    title: string;
+    /** Find Duplicates only: the folder of the kept file. */
+    keeperDir?: string;
+    ops: Operation[];
+  }
+
+  // Find Duplicates groups each keeper with its copies (so the user can
+  // pick a different keeper); every other mode groups by destination folder.
+  let isDedup = $derived(
+    plan.mode === "dedup" && (plan.duplicate_sets?.length ?? 0) > 0,
+  );
+
+  let groups = $derived.by((): Group[] => {
+    if (isDedup) {
+      return groupByDuplicateSet(plan.duplicate_sets ?? [], filteredOps).map(
+        ({ set, copies }) => ({
+          key: set.id,
+          title: fileNameOf(set.keeper),
+          keeperDir: dirOf(set.keeper),
+          ops: copies,
+        }),
+      );
+    }
+    return groupByDir(filteredOps, (op) => op.destination).map(
+      ([dir, ops]) => ({ key: dir, title: dir, ops }),
+    );
+  });
 
   function isGroupOpen(dir: string): boolean {
     return openGroups[dir] ?? true;
@@ -178,11 +217,51 @@
   </p>
 {/if}
 
-{#each groups as [dir, ops] (dir)}
+{#snippet tileButton(op: Operation)}
+  <button
+    type="button"
+    class={cn(
+      "relative flex w-full flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
+      selected[op.id]
+        ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
+        : "border-transparent hover:bg-[var(--color-surface-hover)]",
+    )}
+    onclick={() => (selected = { ...selected, [op.id]: !selected[op.id] })}
+  >
+    <div
+      class="chk absolute left-1.5 top-1.5"
+      data-state={selected[op.id] ? "checked" : "unchecked"}
+      aria-hidden="true"
+    >
+      {#if selected[op.id]}<Check size={11} />{/if}
+    </div>
+    <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
+    <span class="w-full truncate text-xs" title={op.source}
+      >{fileNameOf(op.source)}</span
+    >
+    <span class="text-[0.7rem] text-[var(--color-text-muted)]"
+      >{formatBytes(op.size_bytes)}</span
+    >
+  </button>
+{/snippet}
+
+{#snippet keepButton(op: Operation)}
+  <button
+    type="button"
+    class="btn-ghost whitespace-nowrap px-2 py-0.5 text-xs"
+    disabled={choosingKeeper}
+    title="Keep this copy and move the currently kept file to the trash instead"
+    onclick={() => onChooseKeeper?.(op.id)}
+  >
+    Keep this one
+  </button>
+{/snippet}
+
+{#each groups as { key, title, keeperDir, ops } (key)}
   <Collapsible.Root
     class="group mb-2 rounded-md border border-[var(--color-border-subtle)] overflow-hidden"
-    open={isGroupOpen(dir)}
-    onOpenChange={(v) => (openGroups = { ...openGroups, [dir]: v })}
+    open={isGroupOpen(key)}
+    onOpenChange={(v) => (openGroups = { ...openGroups, [key]: v })}
   >
     <div
       class="flex items-center gap-2 bg-[var(--color-surface-hover)] px-2.5 py-1.5"
@@ -206,10 +285,25 @@
           size={14}
           class="chevron shrink-0 text-[var(--color-text-muted)]"
         />
-        <code class="text-[0.8rem]">{dir}</code>
-        <span class="text-xs text-[var(--color-text-muted)]"
-          >({ops.length})</span
-        >
+        {#if keeperDir !== undefined}
+          <span class="text-xs text-[var(--color-text-muted)]">Keeping</span>
+          <code
+            class="shrink-0 whitespace-nowrap text-[0.8rem]"
+            title="{keeperDir}\{title}">{title}</code
+          >
+          <span
+            class="min-w-0 truncate text-xs text-[var(--color-text-muted)]"
+            title={keeperDir}>in {keeperDir}</span
+          >
+          <span class="shrink-0 text-xs text-[var(--color-text-muted)]"
+            >— {ops.length} {ops.length === 1 ? "copy" : "copies"}</span
+          >
+        {:else}
+          <code class="text-[0.8rem]">{title}</code>
+          <span class="text-xs text-[var(--color-text-muted)]"
+            >({ops.length})</span
+          >
+        {/if}
       </Collapsible.Trigger>
     </div>
     <Collapsible.Content>
@@ -225,7 +319,9 @@
               <div
                 role="row"
                 class="grid h-full items-center gap-2.5 border-t border-[var(--color-border-subtle)] px-2.5 hover:bg-[var(--color-surface-hover)]"
-                style="grid-template-columns: 2rem minmax(0, 55%) minmax(0, 1fr) auto;"
+                style="grid-template-columns: {isDedup
+                  ? '2rem minmax(0, 1fr) auto auto'
+                  : '2rem minmax(0, 55%) minmax(0, 1fr) auto'};"
               >
                 <Checkbox.Root
                   checked={selected[op.id]}
@@ -243,11 +339,15 @@
                 >
                   {op.source}
                 </span>
-                <span
-                  class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
-                >
-                  {op.reason}
-                </span>
+                {#if isDedup}
+                  {@render keepButton(op)}
+                {:else}
+                  <span
+                    class="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--color-text-muted)]"
+                  >
+                    {op.reason}
+                  </span>
+                {/if}
                 <span class="whitespace-nowrap text-right"
                   >{formatBytes(op.size_bytes)}</span
                 >
@@ -261,38 +361,16 @@
             items={ops}
             itemKey={idOf}
             minTileWidth={SCALE_PX[$previewScale] + 56}
-            tileHeight={SCALE_PX[$previewScale] + 62}
+            tileHeight={SCALE_PX[$previewScale] + (isDedup ? 90 : 62)}
             gap={12}
             scrollElement={scrollRoot.el}
             layoutVersion={scrollRoot.layoutVersion}
           >
             {#snippet tile(op: Operation)}
-              <button
-                type="button"
-                class={cn(
-                  "relative flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center",
-                  selected[op.id]
-                    ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
-                    : "border-transparent hover:bg-[var(--color-surface-hover)]",
-                )}
-                onclick={() =>
-                  (selected = { ...selected, [op.id]: !selected[op.id] })}
-              >
-                <div
-                  class="chk absolute left-1.5 top-1.5"
-                  data-state={selected[op.id] ? "checked" : "unchecked"}
-                  aria-hidden="true"
-                >
-                  {#if selected[op.id]}<Check size={11} />{/if}
-                </div>
-                <FileThumb path={op.source} size={SCALE_PX[$previewScale]} />
-                <span class="w-full truncate text-xs" title={op.source}
-                  >{fileNameOf(op.source)}</span
-                >
-                <span class="text-[0.7rem] text-[var(--color-text-muted)]"
-                  >{formatBytes(op.size_bytes)}</span
-                >
-              </button>
+              <div class="flex h-full flex-col items-center gap-1">
+                {@render tileButton(op)}
+                {#if isDedup}{@render keepButton(op)}{/if}
+              </div>
             {/snippet}
           </VirtualGrid>
         </div>

@@ -29,6 +29,7 @@ pub fn run() {
         .manage(commands::plan::PlanStore::default())
         .invoke_handler(tauri::generate_handler![
             commands::plan::generate_plan,
+            commands::plan::choose_keeper,
             commands::apply::apply_plan,
             commands::cancel::cancel_current_operation,
             commands::history::list_runs,

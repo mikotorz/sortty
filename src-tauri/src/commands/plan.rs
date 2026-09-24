@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::commands::blocking;
 use crate::commands::cancel::CancelFlag;
 use crate::config::settings;
-use crate::domain::plan::Plan;
+use crate::domain::plan::{duplicate_reason, staged_destination, Operation, OperationKind, Plan};
 use crate::engine::cleanup::{self, CleanupOptions, StaleAction};
 use crate::engine::dedup::{self, DedupOptions, HashStage, KeepStrategy};
 use crate::engine::scanner::{self, ScanOptions};
@@ -32,11 +32,97 @@ impl PlanStore {
         let mut slot = self.0.lock().unwrap_or_else(|e| e.into_inner());
         match slot.as_ref() {
             Some(plan) if plan.id == plan_id => Ok(slot.take().expect("checked above")),
-            _ => Err(AppError::InvalidPlan(
-                "this preview is out of date — scan again, then apply".to_string(),
-            )),
+            _ => Err(stale_plan()),
         }
     }
+
+    /// Edits the stored plan in place if its id is `plan_id`, returning the
+    /// edited plan for the preview (ADR 0021). If `edit` fails, the stored
+    /// plan is left exactly as it was.
+    pub fn update(
+        &self,
+        plan_id: &str,
+        edit: impl FnOnce(&mut Plan) -> Result<(), AppError>,
+    ) -> Result<Plan, AppError> {
+        let mut slot = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        match slot.as_mut() {
+            Some(plan) if plan.id == plan_id => {
+                let mut edited = plan.clone();
+                edit(&mut edited)?;
+                *plan = edited.clone();
+                Ok(edited)
+            }
+            _ => Err(stale_plan()),
+        }
+    }
+}
+
+fn stale_plan() -> AppError {
+    AppError::InvalidPlan("this preview is out of date — scan again, then apply".to_string())
+}
+
+/// Find Duplicates: keep the copy that `operation_id` would have trashed,
+/// and trash the set's current keeper instead. The webview names an
+/// operation by id, never a path, so it still can't make the backend move a
+/// file the scan didn't find (ADR 0016, ADR 0021).
+pub fn choose_keeper_at(
+    plans: &PlanStore,
+    plan_id: &str,
+    operation_id: &str,
+) -> Result<Plan, AppError> {
+    plans.update(plan_id, |plan| {
+        let not_a_copy =
+            || AppError::InvalidPlan("that file isn't a duplicate in this preview".to_string());
+        let index = plan
+            .operations
+            .iter()
+            .position(|op| op.id == operation_id)
+            .ok_or_else(not_a_copy)?;
+        let set_id = plan.operations[index]
+            .duplicate_set
+            .clone()
+            .ok_or_else(not_a_copy)?;
+        let root = plan.root.clone();
+        let set = plan
+            .duplicate_sets
+            .iter_mut()
+            .find(|s| s.id == set_id)
+            .ok_or_else(not_a_copy)?;
+
+        let promoted = plan.operations.remove(index);
+        let old_keeper = std::mem::replace(&mut set.keeper, promoted.source.clone());
+        let old_keeper_size = std::mem::replace(&mut set.keeper_size_bytes, promoted.size_bytes);
+        let demoted = Operation::new(
+            OperationKind::MoveToTrash,
+            old_keeper.clone(),
+            staged_destination(&root, &old_keeper, &set.trash_folder_name),
+            duplicate_reason(&set.keeper),
+            old_keeper_size,
+        )
+        .in_duplicate_set(&set_id);
+        let reason = duplicate_reason(&set.keeper);
+
+        for op in plan
+            .operations
+            .iter_mut()
+            .filter(|op| op.duplicate_set.as_deref() == Some(&*set_id))
+        {
+            op.reason = reason.clone();
+        }
+        plan.operations.push(demoted);
+        plan.operations.sort_by(|a, b| a.source.cmp(&b.source));
+        plan.recompute_summary();
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn choose_keeper(
+    plan_store: State<'_, PlanStore>,
+    plan_id: String,
+    operation_id: String,
+) -> Result<Plan, AppError> {
+    choose_keeper_at(&plan_store, &plan_id, &operation_id)
 }
 
 /// Progress while building a plan, tagged by phase for the frontend:
@@ -280,5 +366,122 @@ mod tests {
         .unwrap();
 
         assert_eq!(plan.operations.len(), 1);
+    }
+
+    /// Three identical files: a.txt is kept, b.txt and c.txt are copies.
+    fn dedup_plan_in_store(root: &Path, plans: &PlanStore) -> Plan {
+        use crate::domain::plan::{DuplicateSet, PlanMode};
+        let set_id = "set-1";
+        let copy = |name: &str| {
+            Operation::new(
+                OperationKind::MoveToTrash,
+                root.join(name),
+                staged_destination(root, &root.join(name), ".sortty-trash"),
+                duplicate_reason(&root.join("a.txt")),
+                5,
+            )
+            .in_duplicate_set(set_id)
+        };
+        let mut plan = Plan::new(
+            root.to_path_buf(),
+            PlanMode::Dedup,
+            vec![copy("b.txt"), copy("c.txt")],
+        );
+        plan.duplicate_sets = vec![DuplicateSet {
+            id: set_id.to_string(),
+            keeper: root.join("a.txt"),
+            keeper_size_bytes: 5,
+            trash_folder_name: ".sortty-trash".to_string(),
+        }];
+        plans.put(plan.clone());
+        plan
+    }
+
+    fn sources(plan: &Plan) -> Vec<PathBuf> {
+        plan.operations.iter().map(|op| op.source.clone()).collect()
+    }
+
+    #[test]
+    fn choose_keeper_swaps_the_keeper_and_trashes_the_old_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let plans = PlanStore::default();
+        let plan = dedup_plan_in_store(root, &plans);
+        let c = plan.operations[1].id.clone();
+
+        let edited = choose_keeper_at(&plans, &plan.id, &c).unwrap();
+
+        assert_eq!(edited.id, plan.id);
+        assert_eq!(edited.duplicate_sets[0].keeper, root.join("c.txt"));
+        assert_eq!(
+            sources(&edited),
+            vec![root.join("a.txt"), root.join("b.txt")]
+        );
+        let a = &edited.operations[0];
+        assert_eq!(a.kind, OperationKind::MoveToTrash);
+        assert_eq!(a.destination, root.join(".sortty-trash").join("a.txt"));
+        assert_eq!(a.duplicate_set.as_deref(), Some("set-1"));
+        assert!(a.selected);
+        let reason = duplicate_reason(&root.join("c.txt"));
+        assert!(edited.operations.iter().all(|op| op.reason == reason));
+        assert_eq!(edited.summary.total_files, 2);
+
+        // The store now holds the edited plan, so Apply runs what's on screen.
+        let stored = plans.take(&plan.id).unwrap();
+        assert_eq!(sources(&stored), sources(&edited));
+    }
+
+    #[test]
+    fn choosing_the_original_keeper_again_restores_the_plan() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let plans = PlanStore::default();
+        let plan = dedup_plan_in_store(root, &plans);
+
+        let edited = choose_keeper_at(&plans, &plan.id, &plan.operations[0].id).unwrap();
+        let a = edited
+            .operations
+            .iter()
+            .find(|op| op.source == root.join("a.txt"))
+            .unwrap();
+        let back = choose_keeper_at(&plans, &plan.id, &a.id).unwrap();
+
+        assert_eq!(back.duplicate_sets[0].keeper, root.join("a.txt"));
+        assert_eq!(sources(&back), sources(&plan));
+    }
+
+    #[test]
+    fn choose_keeper_rejects_a_stale_plan_or_unknown_operation() {
+        let dir = tempfile::tempdir().unwrap();
+        let plans = PlanStore::default();
+        let plan = dedup_plan_in_store(dir.path(), &plans);
+
+        let stale = choose_keeper_at(&plans, "old-plan", &plan.operations[0].id);
+        assert!(matches!(stale, Err(AppError::InvalidPlan(_))));
+        let unknown = choose_keeper_at(&plans, &plan.id, "no-such-op");
+        assert!(matches!(unknown, Err(AppError::InvalidPlan(_))));
+
+        // A failed edit leaves the stored plan untouched.
+        assert_eq!(sources(&plans.take(&plan.id).unwrap()), sources(&plan));
+    }
+
+    #[test]
+    fn choose_keeper_rejects_an_operation_outside_any_duplicate_set() {
+        use crate::domain::plan::PlanMode;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let plans = PlanStore::default();
+        let op = Operation::new(
+            OperationKind::Move,
+            root.join("a.txt"),
+            root.join("Docs/a.txt"),
+            "sort",
+            1,
+        );
+        let plan = Plan::new(root.to_path_buf(), PlanMode::SortByType, vec![op]);
+        plans.put(plan.clone());
+
+        let result = choose_keeper_at(&plans, &plan.id, &plan.operations[0].id);
+        assert!(matches!(result, Err(AppError::InvalidPlan(_))));
     }
 }

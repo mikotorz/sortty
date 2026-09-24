@@ -35,6 +35,17 @@ export interface Operation {
   reason: string;
   size_bytes: number;
   selected: boolean;
+  /** Find Duplicates: the id of the `DuplicateSet` this copy belongs to. */
+  duplicate_set?: string;
+}
+
+/** A group of identical files: the keeper stays, every other copy is an
+ * operation tagged with this set's id (ADR 0021). */
+export interface DuplicateSet {
+  id: string;
+  keeper: string;
+  keeper_size_bytes: number;
+  trash_folder_name: string;
 }
 
 export interface PlanSummary {
@@ -50,6 +61,8 @@ export interface Plan {
   created_at: string;
   operations: Operation[];
   summary: PlanSummary;
+  /** Find Duplicates only; absent for other modes. */
+  duplicate_sets?: DuplicateSet[];
 }
 
 export type PlanRequest =

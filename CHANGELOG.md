@@ -2,6 +2,11 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Choose which duplicate to keep
+
+- **"Keep this one" in Find Duplicates.** The preview now groups each set of identical files under the copy being kept ("Keeping photo.jpg in C:\…\Downloads — 2 copies"), instead of grouping by trash folder. Each copy has a **Keep this one** button. Click it to keep that copy, and the file that was going to be kept moves to the trash instead. You can switch back and forth as often as you like before applying.
+- The change is made to the plan sortty is holding, so the window still only ever says _which_ planned changes to run, never which files to move. See [ADR 0021](docs/adr/0021-editing-the-stored-plan.md).
+
 ## 2026-09-24 — History no longer grows forever
 
 - **Old runs are cleaned out of History automatically.** A run is removed once it is more than 90 days old **and** isn't among your newest 200 runs, so History always has at least the last 200 runs, however old. A removed run can no longer be undone. The files it moved stay exactly where they are.

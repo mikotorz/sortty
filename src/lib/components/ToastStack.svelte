@@ -74,6 +74,9 @@
     cursor: pointer;
     color: inherit;
   }
+  .toast-body :global(svg) {
+    flex-shrink: 0;
+  }
   .toast-action {
     flex-shrink: 0;
     padding: 0.2rem 0.6rem;

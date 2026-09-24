@@ -36,6 +36,9 @@ pub struct Operation {
     pub reason: String,
     pub size_bytes: u64,
     pub selected: bool,
+    /// For Find Duplicates: the id of the [`DuplicateSet`] this copy belongs to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duplicate_set: Option<String>,
 }
 
 impl Operation {
@@ -54,8 +57,32 @@ impl Operation {
             reason: reason.into(),
             size_bytes,
             selected: true,
+            duplicate_set: None,
         }
     }
+
+    pub fn in_duplicate_set(mut self, set_id: &str) -> Self {
+        self.duplicate_set = Some(set_id.to_string());
+        self
+    }
+}
+
+/// A group of files with identical contents found by Find Duplicates. The
+/// keeper stays where it is; every other copy is a `MoveToTrash` operation
+/// tagged with this set's id. The user can swap the keeper (ADR 0021).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicateSet {
+    pub id: String,
+    pub keeper: PathBuf,
+    pub keeper_size_bytes: u64,
+    /// The trash folder the copies go to, so a new copy (the old keeper,
+    /// after a swap) is staged the same way as the rest.
+    pub trash_folder_name: String,
+}
+
+/// The reason shown for a duplicate copy in the preview.
+pub fn duplicate_reason(keeper: &Path) -> String {
+    format!("Duplicate of {}", keeper.display())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -73,6 +100,9 @@ pub struct Plan {
     pub created_at: DateTime<Utc>,
     pub operations: Vec<Operation>,
     pub summary: PlanSummary,
+    /// Find Duplicates only: each set's keeper and id. Empty for other modes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub duplicate_sets: Vec<DuplicateSet>,
 }
 
 /// The destination for a file being staged into a tool-owned folder inside
@@ -86,11 +116,26 @@ pub fn staged_destination(root: &Path, source: &Path, staging_folder_name: &str)
 
 impl Plan {
     pub fn new(root: PathBuf, mode: PlanMode, operations: Vec<Operation>) -> Self {
+        let mut plan = Plan {
+            id: uuid::Uuid::new_v4().to_string(),
+            root,
+            mode,
+            created_at: Utc::now(),
+            operations,
+            summary: PlanSummary::default(),
+            duplicate_sets: Vec::new(),
+        };
+        plan.recompute_summary();
+        plan
+    }
+
+    /// Rebuilds `summary` from `operations`, e.g. after a plan edit.
+    pub fn recompute_summary(&mut self) {
         let mut summary = PlanSummary {
-            total_files: operations.len(),
+            total_files: self.operations.len(),
             ..Default::default()
         };
-        for op in &operations {
+        for op in &self.operations {
             summary.total_bytes += op.size_bytes;
             let key = op
                 .destination
@@ -99,13 +144,6 @@ impl Plan {
                 .unwrap_or_default();
             *summary.per_destination_counts.entry(key).or_insert(0) += 1;
         }
-        Plan {
-            id: uuid::Uuid::new_v4().to_string(),
-            root,
-            mode,
-            created_at: Utc::now(),
-            operations,
-            summary,
-        }
+        self.summary = summary;
     }
 }

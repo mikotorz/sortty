@@ -3,6 +3,7 @@ import {
   dirOf,
   fileNameOf,
   groupByDir,
+  groupByDuplicateSet,
   isGroupChecked,
   isGroupIndeterminate,
   withGroupSelection,
@@ -63,5 +64,34 @@ describe("group selection helpers", () => {
     const next = withGroupSelection(group, idOf, selected, false);
     expect(next).toEqual({ a: false, b: false, c: false });
     expect(selected).toEqual({ a: true });
+  });
+});
+
+describe("groupByDuplicateSet", () => {
+  const sets = [{ id: "s1" }, { id: "s2" }, { id: "s3" }];
+
+  it("groups copies under their set, in the sets' order", () => {
+    const copies = [
+      { id: "c", duplicate_set: "s2" },
+      { id: "a", duplicate_set: "s1" },
+      { id: "b", duplicate_set: "s2" },
+    ];
+    expect(groupByDuplicateSet(sets, copies)).toEqual([
+      { set: { id: "s1" }, copies: [{ id: "a", duplicate_set: "s1" }] },
+      {
+        set: { id: "s2" },
+        copies: [
+          { id: "c", duplicate_set: "s2" },
+          { id: "b", duplicate_set: "s2" },
+        ],
+      },
+    ]);
+  });
+
+  it("leaves out sets with no copies and copies with no set", () => {
+    const copies = [{ id: "x" }, { id: "y", duplicate_set: "s3" }];
+    expect(groupByDuplicateSet(sets, copies)).toEqual([
+      { set: { id: "s3" }, copies: [{ id: "y", duplicate_set: "s3" }] },
+    ]);
   });
 });

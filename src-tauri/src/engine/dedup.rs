@@ -6,7 +6,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::domain::entry::FileEntry;
-use crate::domain::plan::{staged_destination, Operation, OperationKind, Plan, PlanMode};
+use crate::domain::plan::{
+    duplicate_reason, staged_destination, DuplicateSet, Operation, OperationKind, Plan, PlanMode,
+};
 use crate::error::AppError;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -170,28 +172,42 @@ pub fn build_plan_with_progress(
     duplicate_groups.extend(matching_groups(full));
 
     let mut operations = Vec::new();
+    let mut sets = Vec::new();
     for dup_group in duplicate_groups {
         let Some(keeper) = pick_keeper(&dup_group, options.keep_strategy) else {
             continue;
         };
+        let set_id = uuid::Uuid::new_v4().to_string();
         for entry in &dup_group {
             if entry.path == keeper.path {
                 continue;
             }
-            operations.push(Operation::new(
-                OperationKind::MoveToTrash,
-                entry.path.clone(),
-                staged_destination(root, &entry.path, &options.trash_folder_name),
-                format!("Duplicate of {}", keeper.path.display()),
-                entry.size_bytes,
-            ));
+            operations.push(
+                Operation::new(
+                    OperationKind::MoveToTrash,
+                    entry.path.clone(),
+                    staged_destination(root, &entry.path, &options.trash_folder_name),
+                    duplicate_reason(&keeper.path),
+                    entry.size_bytes,
+                )
+                .in_duplicate_set(&set_id),
+            );
         }
+        sets.push(DuplicateSet {
+            id: set_id,
+            keeper: keeper.path.clone(),
+            keeper_size_bytes: keeper.size_bytes,
+            trash_folder_name: options.trash_folder_name.clone(),
+        });
     }
 
     // HashMap iteration order is random; sort so the same folder always
     // produces the same plan order.
     operations.sort_by(|a, b| a.source.cmp(&b.source));
-    Some(Plan::new(root.to_path_buf(), PlanMode::Dedup, operations))
+    sets.sort_by(|a, b| a.keeper.cmp(&b.keeper));
+    let mut plan = Plan::new(root.to_path_buf(), PlanMode::Dedup, operations);
+    plan.duplicate_sets = sets;
+    Some(plan)
 }
 #[cfg(test)]
 mod tests {
@@ -249,6 +265,13 @@ mod tests {
 
         assert_eq!(plan.operations.len(), 1);
         assert_eq!(plan.operations[0].source, root.join("a.txt"));
+
+        // The copy is tagged with its duplicate set, which names the keeper.
+        assert_eq!(plan.duplicate_sets.len(), 1);
+        let set = &plan.duplicate_sets[0];
+        assert_eq!(set.keeper, root.join("b.txt"));
+        assert_eq!(set.keeper_size_bytes, 12);
+        assert_eq!(plan.operations[0].duplicate_set.as_deref(), Some(&*set.id));
     }
 
     fn entry_for(path: std::path::PathBuf, size: u64) -> FileEntry {

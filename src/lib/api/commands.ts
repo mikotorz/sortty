@@ -48,6 +48,16 @@ export function applyPlan(
   return invoke("apply_plan", { planId, selectedIds, onProgress: channel });
 }
 
+/** Find Duplicates: keep the copy `operationId` would have trashed, and
+ * trash its set's current keeper instead. Edits the backend's stored plan
+ * (ADR 0021) and resolves to the updated plan for the preview. */
+export function chooseKeeper(
+  planId: string,
+  operationId: string,
+): Promise<Plan> {
+  return invoke("choose_keeper", { planId, operationId });
+}
+
 export function cancelCurrentOperation(): Promise<void> {
   return invoke("cancel_current_operation");
 }
