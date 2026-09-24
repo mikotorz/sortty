@@ -2,6 +2,10 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## v0.2.0 — released 2026-09-24
+
+The second release, and the first update installed copies can pick up from Settings → "Check for updates". It includes everything below, back to v0.1.0: choosing which duplicate to keep, automatic History cleanup, errors with a next-step button, "Undo this run" and per-run details, and the review fixes for trash safety, undo, dates and settings.
+
 ## 2026-09-24 — Choose which duplicate to keep
 
 - **"Keep this one" in Find Duplicates.** The preview now groups each set of identical files under the copy being kept ("Keeping photo.jpg in C:\…\Downloads — 2 copies"), instead of grouping by trash folder. Each copy has a **Keep this one** button. Click it to keep that copy, and the file that was going to be kept moves to the trash instead. You can switch back and forth as often as you like before applying.
