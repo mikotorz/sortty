@@ -3,6 +3,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::apply::{executor, store};
 use crate::commands::blocking;
+use crate::commands::history::prune_history;
 use crate::config::settings::{self, TrashSettings};
 use crate::domain::entry::FileEntry;
 use crate::domain::plan::{staged_destination, Operation, OperationKind, Plan, PlanMode};
@@ -99,15 +100,21 @@ pub async fn delete_files(
         .path()
         .app_data_dir()
         .map_err(|e| AppError::Other(e.to_string()))?;
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::Other(e.to_string()))?;
     let trash = load_trash_settings(&app)?;
     let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
     blocking(move || {
-        delete_files_at(
+        let record = delete_files_at(
             Path::new(&root),
             &paths,
             &data_dir,
             &trash.staging_folder_name,
-        )
+        )?;
+        prune_history(&config_dir, &data_dir);
+        Ok(record)
     })
     .await
 }

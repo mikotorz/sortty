@@ -11,6 +11,7 @@ const settings: AppSettings = {
     staging_folder_name: ".sortty-trash",
     archive_folder_name: ".sortty-archive",
   },
+  history: { keep_days: 90 },
 };
 
 // Regression: the mode defaults saved in Settings were never used —

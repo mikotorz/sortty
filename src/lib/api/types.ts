@@ -132,4 +132,6 @@ export interface AppSettings {
   cleanup: { stale_days: number; date_source: DateSource; action: StaleAction };
   dedup: { keep_strategy: KeepStrategy; min_size_bytes: number };
   trash: { staging_folder_name: string; archive_folder_name: string };
+  /** How many days History keeps runs; 0 keeps them forever (ADR 0020). */
+  history: { keep_days: number };
 }

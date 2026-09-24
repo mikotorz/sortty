@@ -63,6 +63,24 @@ impl TrashSettings {
 pub const DEFAULT_TRASH_FOLDER: &str = ".sortty-trash";
 pub const DEFAULT_ARCHIVE_FOLDER: &str = ".sortty-archive";
 
+/// How long History keeps runs (ADR 0020). `keep_days == 0` keeps them forever.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HistorySettings {
+    pub keep_days: u32,
+}
+
+pub const DEFAULT_HISTORY_KEEP_DAYS: u32 = 90;
+pub const MAX_HISTORY_KEEP_DAYS: u32 = 3650;
+
+impl Default for HistorySettings {
+    fn default() -> Self {
+        HistorySettings {
+            keep_days: DEFAULT_HISTORY_KEEP_DAYS,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub general: GeneralSettings,
@@ -70,6 +88,10 @@ pub struct AppSettings {
     pub cleanup: CleanupSettings,
     pub dedup: DedupSettings,
     pub trash: TrashSettings,
+    /// Added after the first release, so older settings.toml files without a
+    /// `[history]` table still load.
+    #[serde(default)]
+    pub history: HistorySettings,
 }
 
 impl Default for AppSettings {
@@ -96,6 +118,7 @@ impl Default for AppSettings {
                 staging_folder_name: DEFAULT_TRASH_FOLDER.to_string(),
                 archive_folder_name: DEFAULT_ARCHIVE_FOLDER.to_string(),
             },
+            history: HistorySettings::default(),
         }
     }
 }
@@ -122,6 +145,11 @@ pub fn load_settings(config_dir: &Path) -> Result<AppSettings, AppError> {
 pub fn save_settings(config_dir: &Path, settings: &AppSettings) -> Result<(), AppError> {
     validate_folder_name(&settings.trash.staging_folder_name)?;
     validate_folder_name(&settings.trash.archive_folder_name)?;
+    if settings.history.keep_days > MAX_HISTORY_KEEP_DAYS {
+        return Err(AppError::Config(format!(
+            "history can be kept for at most {MAX_HISTORY_KEEP_DAYS} days (use 0 to keep it forever)"
+        )));
+    }
 
     std::fs::create_dir_all(config_dir).map_err(|e| AppError::io(config_dir.to_path_buf(), e))?;
     let path = settings_path(config_dir);
@@ -166,6 +194,28 @@ mod tests {
 
         let reloaded = load_settings(dir.path()).unwrap();
         assert_eq!(reloaded.cleanup.stale_days, settings.cleanup.stale_days);
+    }
+
+    #[test]
+    fn settings_without_a_history_table_still_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut text = toml::to_string_pretty(&AppSettings::default()).unwrap();
+        let cut = text.find("[history]").unwrap();
+        text.truncate(cut);
+        std::fs::write(dir.path().join("settings.toml"), text).unwrap();
+
+        let settings = load_settings(dir.path()).unwrap();
+        assert_eq!(settings.history.keep_days, DEFAULT_HISTORY_KEEP_DAYS);
+    }
+
+    #[test]
+    fn rejects_an_out_of_range_history_setting() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut settings = AppSettings::default();
+        settings.history.keep_days = MAX_HISTORY_KEEP_DAYS + 1;
+        assert!(save_settings(dir.path(), &settings).is_err());
+        settings.history.keep_days = 0;
+        assert!(save_settings(dir.path(), &settings).is_ok());
     }
 
     #[test]

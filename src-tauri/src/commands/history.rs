@@ -3,8 +3,26 @@ use tauri::{AppHandle, Manager};
 
 use crate::apply::{store, undo};
 use crate::commands::blocking;
+use crate::config::settings;
 use crate::domain::run::{RunRecord, RunSummary, UndoResult};
 use crate::error::AppError;
+
+/// Applies the History retention rule (ADR 0020) after a new run was saved.
+/// Best effort: a failure here is logged and never fails the run itself.
+pub(crate) fn prune_history(config_dir: &Path, data_dir: &Path) {
+    let keep_days = match settings::load_settings(config_dir) {
+        Ok(s) => s.history.keep_days,
+        Err(e) => {
+            log::warn!("sortty: skipping history pruning, couldn't load settings: {e}");
+            return;
+        }
+    };
+    match store::prune_runs(data_dir, keep_days, chrono::Utc::now()) {
+        Ok(0) => {}
+        Ok(n) => log::info!("sortty: pruned {n} old run(s) from history"),
+        Err(e) => log::warn!("sortty: history pruning failed: {e}"),
+    }
+}
 
 fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
     app.path()

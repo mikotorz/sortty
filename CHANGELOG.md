@@ -2,6 +2,11 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — History no longer grows forever
+
+- **Old runs are cleaned out of History automatically.** A run is removed once it is more than 90 days old **and** isn't among your newest 200 runs, so History always has at least the last 200 runs, however old. A removed run can no longer be undone. The files it moved stay exactly where they are.
+- **New setting: Settings → History → "Keep runs for (days)".** The default is 90. Set it to 0 to keep every run forever. Existing settings files pick up the default automatically. See [ADR 0020](docs/adr/0020-history-retention.md).
+
 ## 2026-09-24 — Errors that suggest the next step
 
 - **"Scan again" when a preview is out of date.** If Apply fails because the preview no longer matches what sortty has on hand, the error now has a **Scan again** button.

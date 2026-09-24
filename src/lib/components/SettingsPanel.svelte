@@ -267,6 +267,24 @@
   </section>
 
   <section class="mb-6">
+    <h3 class="mb-2 text-sm font-semibold">History</h3>
+    <label class="flex items-center gap-2 text-sm">
+      Keep runs for (days)
+      <input
+        class="field max-w-[8rem]"
+        type="number"
+        min="0"
+        max="3650"
+        bind:value={appSettings.history.keep_days}
+      />
+    </label>
+    <p class="mt-1 text-xs text-[var(--color-text-muted)]">
+      Older runs are removed from History and can no longer be undone. The
+      newest 200 runs are always kept. Use 0 to keep everything.
+    </p>
+  </section>
+
+  <section class="mb-6">
     <h3 class="mb-2 text-sm font-semibold">Trash &amp; archive folders</h3>
     <div class="flex flex-col gap-2">
       <label class="flex items-center gap-2 text-sm">
@@ -350,9 +368,9 @@
               <AlertDialog.Description
                 class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]"
               >
-                This replaces your file type categories, cleanup thresholds, and
-                trash/archive folder names with the built-in defaults. This
-                can't be undone.
+                This replaces your file type categories, cleanup thresholds,
+                history retention, and trash/archive folder names with the
+                built-in defaults. This can't be undone.
               </AlertDialog.Description>
               <div class="mt-4 flex justify-end gap-2">
                 <AlertDialog.Cancel class="btn-ghost">Cancel</AlertDialog.Cancel

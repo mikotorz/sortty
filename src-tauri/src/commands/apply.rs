@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::apply::{executor, store};
 use crate::commands::blocking;
 use crate::commands::cancel::CancelFlag;
+use crate::commands::history::prune_history;
 use crate::commands::plan::PlanStore;
 use crate::domain::run::RunRecord;
 use crate::error::AppError;
@@ -53,11 +54,15 @@ pub async fn apply_plan(
         .path()
         .app_data_dir()
         .map_err(|e| AppError::Other(e.to_string()))?;
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| AppError::Other(e.to_string()))?;
     let cancel_flag = cancel_flag.inner().clone();
     let plan_store = plan_store.inner().clone();
     blocking(move || {
         let mut last_sent = 0usize;
-        apply_plan_at(
+        let record = apply_plan_at(
             &plan_store,
             &plan_id,
             &selected_ids,
@@ -69,7 +74,9 @@ pub async fn apply_plan(
                 }
             },
             || cancel_flag.is_cancelled(),
-        )
+        )?;
+        prune_history(&config_dir, &data_dir);
+        Ok(record)
     })
     .await
 }
