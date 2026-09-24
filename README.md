@@ -2,6 +2,9 @@
 
 A desktop app for sorting and cleaning up messy folders (Downloads, Desktop, etc.) — built with [Tauri](https://tauri.app) (Rust) and SvelteKit.
 
+> [!WARNING]
+> **Personal project, use at your own risk.** Sortty is written mainly by an AI coding assistant ([Claude](https://claude.com/claude-code)), with a human setting direction and reviewing the results. It is built for its author's own use, and it is shared publicly as-is. It moves files around on your disk. It is designed never to really delete anything, and every run can be undone, but it has had no independent review and comes with no warranty or support (see [LICENSE](LICENSE)). Back up anything you care about before pointing it at a folder, and expect rough edges.
+
 ## What it does
 
 Point it at a folder and pick a mode:

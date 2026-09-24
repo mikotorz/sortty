@@ -2,6 +2,11 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — The project is now public
+
+- **The repository is public**, so installed copies can download updates. "Check for updates" reads the update file from the public release page, which was unreachable while the repository was private.
+- **Added a use-at-your-own-risk notice** to the top of the README and to the release notes. Sortty is written mainly by an AI coding assistant for its author's personal use. It is shared as-is, with no independent review, warranty or support.
+
 ## v0.2.0 — released 2026-09-24
 
 The second release, and the first update installed copies can pick up from Settings → "Check for updates". It includes everything below, back to v0.1.0: choosing which duplicate to keep, automatic History cleanup, errors with a next-step button, "Undo this run" and per-run details, and the review fixes for trash safety, undo, dates and settings.
