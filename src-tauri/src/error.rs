@@ -25,11 +25,30 @@ pub enum AppError {
     RunNotFound(String),
     #[error("plan and selection do not match: {0}")]
     InvalidPlan(String),
+    #[error("run {0} was already undone")]
+    AlreadyUndone(String),
     #[error("{0}")]
     Other(String),
 }
 
 impl AppError {
+    /// Stable, machine-readable name of the variant, sent to the frontend
+    /// alongside the message so it can react to *what* went wrong (ADR 0019).
+    pub fn kind(&self) -> &'static str {
+        match self {
+            AppError::Io { .. } => "io",
+            AppError::NotFound(_) => "not_found",
+            AppError::NotADirectory(_) => "not_a_directory",
+            AppError::ProtectedPath(_) => "protected_path",
+            AppError::ProtectedRecursive(_) => "protected_recursive",
+            AppError::Config(_) => "config",
+            AppError::RunNotFound(_) => "run_not_found",
+            AppError::InvalidPlan(_) => "invalid_plan",
+            AppError::AlreadyUndone(_) => "already_undone",
+            AppError::Other(_) => "other",
+        }
+    }
+
     pub fn io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         AppError::Io {
             path: path.into(),
@@ -63,6 +82,44 @@ impl Serialize for AppError {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("AppError", 2)?;
+        s.serialize_field("kind", self.kind())?;
+        s.serialize_field("message", &self.to_string())?;
+        s.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_as_kind_and_message() {
+        let cases = [
+            (AppError::io("C:/a", std::io::Error::other("boom")), "io"),
+            (AppError::NotFound("C:/a".into()), "not_found"),
+            (AppError::NotADirectory("C:/a".into()), "not_a_directory"),
+            (
+                AppError::ProtectedPath("C:/Windows".into()),
+                "protected_path",
+            ),
+            (
+                AppError::ProtectedRecursive("C:/Users/me".into()),
+                "protected_recursive",
+            ),
+            (AppError::Config("bad".into()), "config"),
+            (AppError::RunNotFound("r1".into()), "run_not_found"),
+            (AppError::InvalidPlan("stale".into()), "invalid_plan"),
+            (AppError::AlreadyUndone("r1".into()), "already_undone"),
+            (AppError::Other("x".into()), "other"),
+        ];
+        for (err, kind) in cases {
+            let json = serde_json::to_value(&err).unwrap();
+            assert_eq!(
+                json,
+                serde_json::json!({ "kind": kind, "message": err.to_string() })
+            );
+        }
     }
 }

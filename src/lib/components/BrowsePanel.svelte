@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from "../api/errors";
   import { open } from "@tauri-apps/plugin-dialog";
   import { Collapsible, Checkbox } from "bits-ui";
   import {
@@ -77,7 +78,7 @@
     try {
       entries = await browseFolder(folder);
     } catch (e) {
-      pushToast("error", `Couldn't read that folder: ${e}`);
+      pushToast("error", `Couldn't read that folder: ${errorMessage(e)}`);
       entries = [];
     } finally {
       loading = false;
@@ -99,7 +100,7 @@
       );
       await reload();
     } catch (e) {
-      pushToast("error", `Delete failed: ${e}`);
+      pushToast("error", `Delete failed: ${errorMessage(e)}`);
     } finally {
       deleting = false;
     }
@@ -118,7 +119,7 @@
       emptyPreview = preview;
       emptyConfirmOpen = true;
     } catch (e) {
-      pushToast("error", `Couldn't check the ${noun}: ${e}`);
+      pushToast("error", `Couldn't check the ${noun}: ${errorMessage(e)}`);
     }
   }
 
@@ -136,7 +137,7 @@
       );
       await reload();
     } catch (e) {
-      pushToast("error", `Couldn't empty the ${noun}: ${e}`);
+      pushToast("error", `Couldn't empty the ${noun}: ${errorMessage(e)}`);
     } finally {
       emptying = false;
       emptyKind = null;

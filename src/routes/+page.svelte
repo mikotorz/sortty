@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorKind, errorMessage } from "$lib/api/errors";
   import { open } from "@tauri-apps/plugin-dialog";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import FolderPicker from "$lib/components/FolderPicker.svelte";
@@ -106,7 +107,22 @@
         plan.operations.map((op) => [op.id, op.selected]),
       );
     } catch (e) {
-      pushToast("error", `Scan failed: ${e}`);
+      const action =
+        errorKind(e) === "protected_recursive"
+          ? {
+              label: "Scan without subfolders",
+              run: () => {
+                scanSession.scanOptions.include_subfolders = false;
+                void scan();
+              },
+            }
+          : undefined;
+      pushToast(
+        "error",
+        `Scan failed: ${errorMessage(e)}`,
+        action ? 10000 : 4000,
+        action,
+      );
       scanSession.plan = null;
     } finally {
       scanSession.scanning = false;
@@ -133,7 +149,7 @@
       }
       scanSession.lastRun = null;
     } catch (e) {
-      pushToast("error", `Undo failed: ${e}`);
+      pushToast("error", `Undo failed: ${errorMessage(e)}`);
     } finally {
       undoingLastRun = false;
     }
@@ -170,7 +186,14 @@
       scanSession.plan = null;
       scanSession.selected = {};
     } catch (e) {
-      pushToast("error", `Apply failed: ${e}`);
+      if (errorKind(e) === "invalid_plan") {
+        pushToast("error", `Apply failed: ${errorMessage(e)}`, 10000, {
+          label: "Scan again",
+          run: () => void scan(),
+        });
+      } else {
+        pushToast("error", `Apply failed: ${errorMessage(e)}`);
+      }
     } finally {
       scanSession.applying = false;
       scanSession.applyProgress = null;

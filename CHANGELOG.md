@@ -2,6 +2,12 @@
 
 Notable changes to sortty, newest first. This is the primary place to catch up on what changed without reading diffs — see `docs/adr/` for the reasoning behind the bigger decisions.
 
+## 2026-09-24 — Errors that suggest the next step
+
+- **"Scan again" when a preview is out of date.** If Apply fails because the preview no longer matches what sortty has on hand, the error now has a **Scan again** button.
+- **"Scan without subfolders" when the whole user folder is refused.** Scanning your entire user folder with subfolders included is blocked for safety. The error now offers to turn subfolders off and scan straight away.
+- Behind this, errors from the app now carry a kind as well as a message, so the window can react to _what_ went wrong rather than just showing text. The messages themselves are unchanged. The one exception: trying to undo a run twice now just says the run was already undone. See [ADR 0019](docs/adr/0019-structured-ipc-errors.md).
+
 ## 2026-09-24 — Undo right after applying
 
 - **"Undo this run" button.** After you apply a plan, the result box on Sort & Clean now says how many files moved and offers **Undo this run** straight away. Before, the only way to undo was from History.

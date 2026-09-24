@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from "../api/errors";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import type { AppliedOperation, RunRecord } from "../api/types";
   import { dirOf, fileNameOf } from "../grouping";
@@ -29,7 +30,7 @@
     try {
       await revealItemInDir(path);
     } catch (e) {
-      pushToast("error", `Couldn't show that file: ${e}`);
+      pushToast("error", `Couldn't show that file: ${errorMessage(e)}`);
     }
   }
 </script>

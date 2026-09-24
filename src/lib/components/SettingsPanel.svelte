@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from "../api/errors";
   import { onMount } from "svelte";
   import { AlertDialog } from "bits-ui";
   import { fade, fly } from "svelte/transition";
@@ -57,7 +58,7 @@
         ]),
       );
     } catch (e) {
-      pushToast("error", `Couldn't load settings: ${e}`);
+      pushToast("error", `Couldn't load settings: ${errorMessage(e)}`);
     } finally {
       loading = false;
     }
@@ -93,7 +94,7 @@
       publishModeDefaults($state.snapshot(appSettings));
       pushToast("success", "Settings saved.");
     } catch (e) {
-      pushToast("error", `Save failed: ${e}`);
+      pushToast("error", `Save failed: ${errorMessage(e)}`);
     } finally {
       saving = false;
     }
@@ -125,7 +126,7 @@
       publishModeDefaults(s);
       pushToast("success", "Settings restored to defaults.");
     } catch (e) {
-      pushToast("error", `Restore failed: ${e}`);
+      pushToast("error", `Restore failed: ${errorMessage(e)}`);
     } finally {
       resetting = false;
     }
@@ -142,7 +143,7 @@
       updateAvailable = update;
       updateConfirmOpen = true;
     } catch (e) {
-      pushToast("error", `Couldn't check for updates: ${e}`);
+      pushToast("error", `Couldn't check for updates: ${errorMessage(e)}`);
     } finally {
       checkingUpdate = false;
     }
@@ -156,7 +157,7 @@
       await updateAvailable.downloadAndInstall();
       await relaunch();
     } catch (e) {
-      pushToast("error", `Update failed: ${e}`);
+      pushToast("error", `Update failed: ${errorMessage(e)}`);
       installingUpdate = false;
     }
   }

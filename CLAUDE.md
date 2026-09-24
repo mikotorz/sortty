@@ -11,6 +11,15 @@ Concretely, whenever a change is made to sortty:
 
 Commit and push to `main` as part of finishing a unit of work, the same way tests are run before calling something done — don't wait to be asked. Use judgment on genuinely irreversible or destructive actions (force-push, history rewrites, deleting the repo) — those still warrant checking in first.
 
+## Process hygiene
+
+A past session left a `find.exe` crawling every drive after its tool call was "stopped". On Windows, stopping a bash wrapper does not kill the child process. So:
+
+- Never run `find /`, or any search across a whole drive. Use Glob, or look in a known place (crate sources are under `~/.cargo/registry/src/*/`).
+- Run tests and builds in the foreground with a timeout. If something must run in the background, stop it when done.
+- For E2E runs, launch `sortty.exe` with `Start-Process -PassThru` and keep the PID. Stop it, and any `msedgewebview2` whose parent is that PID, in a `finally`. Leave other webview processes alone.
+- Before finishing a unit of work, check `Get-CimInstance Win32_Process` for leftover `find`/`sortty`/`cargo`/`rustc`/`node` processes you started, and kill them.
+
 ## Agent skills
 
 ### Issue tracker

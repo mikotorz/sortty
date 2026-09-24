@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from "../api/errors";
   import { onMount } from "svelte";
   import { getRun, listRuns, undoRun } from "../api/commands";
   import type { RunRecord, RunSummary } from "../api/types";
@@ -21,7 +22,7 @@
     try {
       runs = await listRuns(50);
     } catch (e) {
-      pushToast("error", `Couldn't load history: ${e}`);
+      pushToast("error", `Couldn't load history: ${errorMessage(e)}`);
     } finally {
       loading = false;
     }
@@ -50,7 +51,7 @@
         expanded = { ...expanded, [runId]: await getRun(runId) };
       }
     } catch (e) {
-      pushToast("error", `Undo failed: ${e}`);
+      pushToast("error", `Undo failed: ${errorMessage(e)}`);
     } finally {
       undoingId = null;
     }
@@ -67,7 +68,7 @@
     try {
       expanded = { ...expanded, [runId]: await getRun(runId) };
     } catch (e) {
-      pushToast("error", `Couldn't load run details: ${e}`);
+      pushToast("error", `Couldn't load run details: ${errorMessage(e)}`);
     } finally {
       loadingDetailsFor = null;
     }

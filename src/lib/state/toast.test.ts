@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
-import { dismissToast, pushToast, toasts } from "./toast";
+import { dismissToast, pushToast, runToastAction, toasts } from "./toast";
 
 describe("toast store", () => {
   it("pushToast adds a toast and dismissToast removes it by id", () => {
@@ -31,5 +31,20 @@ describe("toast store", () => {
     pushToast("info", "two", 999999);
     const [first, second] = get(toasts);
     expect(second.id).toBeGreaterThan(first.id);
+  });
+
+  it("runToastAction runs the action once and dismisses the toast", () => {
+    toasts.set([]);
+    const run = vi.fn();
+    pushToast("error", "Out of date.", 999999, { label: "Scan again", run });
+    const [toast] = get(toasts);
+    expect(toast.action?.label).toBe("Scan again");
+
+    runToastAction(toast.id);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(get(toasts)).toEqual([]);
+
+    runToastAction(toast.id); // already gone: no-op
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

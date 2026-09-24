@@ -25,9 +25,7 @@ pub async fn get_run(app: AppHandle, run_id: String) -> Result<RunRecord, AppErr
 pub fn undo_run_at(data_dir: &Path, run_id: &str) -> Result<UndoResult, AppError> {
     let record = store::get_run(data_dir, run_id)?;
     if record.undone {
-        return Err(AppError::InvalidPlan(format!(
-            "run {run_id} was already undone"
-        )));
+        return Err(AppError::AlreadyUndone(run_id.to_string()));
     }
     undo_and_save(data_dir, record)
 }
@@ -218,6 +216,6 @@ mod tests {
         store::mark_undone(data_dir, "run-1").unwrap();
 
         let err = undo_run_at(data_dir, "run-1").unwrap_err();
-        assert!(matches!(err, AppError::InvalidPlan(_)));
+        assert!(matches!(err, AppError::AlreadyUndone(_)));
     }
 }
